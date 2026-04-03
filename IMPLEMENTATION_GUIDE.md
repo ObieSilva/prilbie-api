@@ -86,9 +86,11 @@ Everything needed before writing a single business feature.
 
 ---
 
-### Step 1.5 — Common Infrastructure (Guards, Decorators, Pipes, Filters, Interceptors, Middleware)
+### Step 1.5 — Common Infrastructure (Guards, Decorators, Pipes, Filters, Interceptors, Middleware) - DONE
 
 **Spec refs:** §3.2, §3.3, §5.0, §6.10, §10.2
+
+**Implementation note:** This repo uses Zod v4, so adapt §6.10's `ZodSchema` sample to `ZodType`. `safeParse()` and `error.flatten()` still behave as expected for this step.
 
 **Do:**
 
@@ -552,7 +554,7 @@ Phase 1: Project Scaffold & Infrastructure
   [x] 1.2 — Docker & Local Dev Environment
   [x] 1.3 — Prisma Setup & Database Schema
   [x] 1.4 — App Module Shell, Global Prefix & main.ts
-  [ ] 1.5 — Common Infrastructure
+  [x] 1.5 — Common Infrastructure
   [ ] 1.6 — Shared Schemas & Constants
   [ ] 1.7 — Cache Module
   [ ] 1.8 — Health Module
