@@ -136,7 +136,7 @@ Everything needed before writing a single business feature.
 
 ---
 
-### Step 1.8 — Health Module
+### Step 1.8 — Health Module - DONE
 
 **Spec refs:** §5.2
 
@@ -555,9 +555,9 @@ Phase 1: Project Scaffold & Infrastructure
   [x] 1.3 — Prisma Setup & Database Schema
   [x] 1.4 — App Module Shell, Global Prefix & main.ts
   [x] 1.5 — Common Infrastructure
-  [ ] 1.6 — Shared Schemas & Constants
-  [ ] 1.7 — Cache Module
-  [ ] 1.8 — Health Module
+  [x] 1.6 — Shared Schemas & Constants
+  [x] 1.7 — Cache Module
+  [x] 1.8 — Health Module
 
 Phase 2: Auth & User Management
   [ ] 2.1 — Auth Module (Clerk Webhook)
