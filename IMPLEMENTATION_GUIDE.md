@@ -80,7 +80,7 @@ Everything needed before writing a single business feature.
 - Add `**src/config/env.schema.ts`** — Zod schema + `validateEnv` for `ConfigModule.forRoot({ validate })` per §12.6 (`DATABASE_URL` always required; `PORT` 1–65535 default 3001; `CLERK_*` required only when `NODE_ENV=production`; `test`/`development` may omit Clerk for partial local runs).
 - In `src/main.ts`, listen using `**ConfigService.getOrThrow('PORT')`** after `NestFactory.create` so the port matches validated config.
 - Create `src/app.module.ts` — imports `PrismaModule`, `LoggerModule` (§10.1), `ThrottlerModule` (§5.1), `validate` on `ConfigModule`, and applies `CorrelationIdMiddleware`.
-- Register `**ThrottlerGuard`** and `**ClerkAuthGuard**` as `**APP_GUARD**` globally in `AppModule` (global limits require the throttler guard; see §5.1). The Clerk guard file is specified in Step 1.5 — create it here if needed so the module compiles.
+- Register `**ThrottlerGuard`** and `**ClerkAuthGuard`** as `**APP_GUARD**` globally in `AppModule` (global limits require the throttler guard; see §5.1). The Clerk guard file is specified in Step 1.5 — create it here if needed so the module compiles.
 
 **Verify:** `npm run start:dev` boots without errors. `GET http://localhost:3001/` returns 404 (no routes yet) but the server is running.
 
@@ -152,7 +152,7 @@ Everything needed before writing a single business feature.
 
 ## Phase 2: Auth & User Management
 
-### Step 2.1 — Auth Module (Clerk Webhook)
+### Step 2.1 — Auth Module (Clerk Webhook) - DONE
 
 **Spec refs:** §3.4, §5.3
 

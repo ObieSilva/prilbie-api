@@ -4,17 +4,10 @@ const nodeEnvSchema = z.enum(['development', 'production', 'test']);
 
 const PRODUCTION_CLERK_KEYS = ['CLERK_SECRET_KEY', 'CLERK_JWT_KEY'] as const;
 
-/** Normalize ConfigModule / `process.env` values into a number for `PORT`. */
 function parsePortFromEnv(val: unknown): unknown {
-  if (val === undefined || val === null || val === '') return 3001;
-  if (typeof val === 'number') return Number.isInteger(val) ? val : val;
-  if (typeof val === 'string') {
-    const s = val.trim();
-    if (s === '') return 3001;
-    const n = Number.parseInt(s, 10);
-    return Number.isNaN(n) ? val : n;
-  }
-  return val;
+  if (typeof val !== 'string' || val.trim() === '') return 3001;
+  const n = Number.parseInt(val.trim(), 10);
+  return Number.isNaN(n) ? val : n;
 }
 
 /** Parsed and validated env exposed via ConfigService after bootstrap. */
@@ -29,6 +22,7 @@ export const envSchema = z
     PORT: z.preprocess(parsePortFromEnv, z.number().int().min(1).max(65535)),
     CLERK_SECRET_KEY: z.string().optional(),
     CLERK_JWT_KEY: z.string().optional(),
+    CLERK_WEBHOOK_SECRET: z.string().optional(),
   })
   .passthrough()
   .superRefine((data, ctx) => {

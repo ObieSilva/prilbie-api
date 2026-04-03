@@ -10,6 +10,7 @@ import { pinoGenReqId } from './common/constants/http-headers';
 import { ClerkAuthGuard } from './common/guards/clerk-auth.guard';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { CorrelationIdMiddleware } from './common/middleware/correlation-id.middleware';
+import { AuthModule } from './auth/auth.module';
 import { CacheModule } from './cache/cache.module';
 import { HealthModule } from './health/health.module';
 import { PrismaModule } from './prisma/prisma.module';
@@ -49,6 +50,7 @@ type PinoSerializedReq = {
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
     PrismaModule,
     CacheModule,
+    AuthModule,
     HealthModule,
   ],
   providers: [
