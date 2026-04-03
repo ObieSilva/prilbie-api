@@ -78,7 +78,7 @@ Everything needed before writing a single business feature.
 
 - Implement bootstrap with the **same behavior** as §13 (Swagger, helmet, compression, CORS, global prefix with exclusions for health + webhook routes, shutdown hooks, pino logger). A thin `src/main.ts` plus a shared `src/configure-app.ts` (called from `main` and e2e) is the **preferred** pattern for DRY tests; §13’s inline `main.ts` remains the behavioral reference.
 - Add `**src/config/env.schema.ts`** — Zod schema + `validateEnv` for `ConfigModule.forRoot({ validate })` per §12.6 (`DATABASE_URL` always required; `PORT` 1–65535 default 3001; `CLERK_*` required only when `NODE_ENV=production`; `test`/`development` may omit Clerk for partial local runs).
-- In `src/main.ts`, listen using `**ConfigService.getOrThrow('PORT')**` after `NestFactory.create` so the port matches validated config.
+- In `src/main.ts`, listen using `**ConfigService.getOrThrow('PORT')`** after `NestFactory.create` so the port matches validated config.
 - Create `src/app.module.ts` — imports `PrismaModule`, `LoggerModule` (§10.1), `ThrottlerModule` (§5.1), `validate` on `ConfigModule`, and applies `CorrelationIdMiddleware`.
 - Register `**ThrottlerGuard**` and `**ClerkAuthGuard**` as `**APP_GUARD**` globally in `AppModule` (global limits require the throttler guard; see §5.1). The Clerk guard file is specified in Step 1.5 — create it here if needed so the module compiles.
 
@@ -105,7 +105,7 @@ Everything needed before writing a single business feature.
 
 ---
 
-### Step 1.6 — Shared Schemas & Constants
+### Step 1.6 — Shared Schemas & Constants - DONE
 
 **Spec refs:** §6.1 (enums.ts, shared.ts), §6.11 (dependency map), §7.2–§7.5 (constants), Appendix E (icons)
 
