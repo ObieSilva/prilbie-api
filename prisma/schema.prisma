@@ -1,0 +1,248 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── User Profile ────────────────────────────────────────
+
+model UserProfile {
+  id                String    @id @default(cuid())
+  clerkUserId       String    @unique @map("clerk_user_id")
+  userName          String    @map("user_name")
+  onboarded         Boolean   @default(false)
+  timezone          String    @default("UTC")
+  lastReviewDate    DateTime? @map("last_review_date")
+  lastMilestoneSeen Int       @default(0) @map("last_milestone_seen")
+  focusedActionId   String?   @map("focused_action_id")
+  focusedAt         DateTime? @map("focused_at")
+  deletedAt         DateTime? @map("deleted_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  systems           System[]
+  dailyEnergies     DailyEnergy[]
+  dailyReflections  DailyReflection[]
+  aiConversations   AiConversation[]
+
+  @@map("user_profiles")
+}
+
+// ─── System ──────────────────────────────────────────────
+
+model System {
+  id            String    @id @default(cuid())
+  userId        String    @map("user_id")
+  name          String
+  icon          String
+  replacedHabit String?   @map("replaced_habit")
+  sortOrder     Int       @default(0) @map("sort_order")
+  deletedAt     DateTime? @map("deleted_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  user          UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+  areas         Area[]
+  checkins      Checkin[]
+
+  @@index([userId])
+  @@index([userId, deletedAt])
+  @@map("systems")
+}
+
+// ─── Area ────────────────────────────────────────────────
+
+model Area {
+  id        String    @id @default(cuid())
+  systemId  String    @map("system_id")
+  name      String
+  sortOrder Int       @default(0) @map("sort_order")
+  deletedAt DateTime? @map("deleted_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  system    System         @relation(fields: [systemId], references: [id], onDelete: Cascade)
+  bundles   ActionBundle[]
+  checkins  Checkin[]
+
+  @@index([systemId])
+  @@index([systemId, deletedAt])
+  @@map("areas")
+}
+
+// ─── Action Bundle ───────────────────────────────────────
+
+model ActionBundle {
+  id          String    @id @default(cuid())
+  areaId      String    @map("area_id")
+  bundleTitle String?   @map("bundle_title")
+  sortOrder   Int       @default(0) @map("sort_order")
+  deletedAt   DateTime? @map("deleted_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  area        Area     @relation(fields: [areaId], references: [id], onDelete: Cascade)
+  actions     Action[]
+
+  @@index([areaId])
+  @@index([areaId, deletedAt])
+  @@map("action_bundles")
+}
+
+// ─── Action ──────────────────────────────────────────────
+
+enum EffortLevel {
+  baseline
+  normal
+  stretch
+}
+
+enum TimeAnchor {
+  morning
+  midday
+  afternoon
+  evening
+  anytime
+}
+
+model Action {
+  id           String      @id @default(cuid())
+  bundleId     String      @map("bundle_id")
+  title        String
+  effortLevel  EffortLevel @map("effort_level")
+  anchor       TimeAnchor  @default(anytime)
+  deletedAt    DateTime?   @map("deleted_at")
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+
+  bundle       ActionBundle @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+  checkins     Checkin[]
+
+  @@unique([bundleId, effortLevel])
+  @@index([bundleId])
+  @@map("actions")
+}
+
+// ─── Checkin ─────────────────────────────────────────────
+//
+// DELIBERATE DENORMALIZATION: systemId and areaId are stored directly
+// on Checkin even though they can be derived via actionId → bundle → area → system.
+// This is intentional for query performance:
+//   - GET /checkins?systemId=X avoids a 3-table join
+//   - GET /momentum/* aggregations group by systemId directly
+//   - Streak calculation filters by userId+date without joins
+// The service layer resolves and sets these from the action chain on create.
+// They are never accepted from the client.
+
+model Checkin {
+  id           String      @id @default(cuid())
+  systemId     String      @map("system_id")
+  areaId       String      @map("area_id")
+  actionId     String      @map("action_id")
+  energyLevel  EffortLevel @map("energy_level")
+  note         String?
+  date         String      // ISO date string "YYYY-MM-DD" (in user's timezone)
+  createdAt    DateTime    @default(now()) @map("created_at")
+
+  system       System  @relation(fields: [systemId], references: [id], onDelete: Cascade)
+  area         Area    @relation(fields: [areaId], references: [id], onDelete: Cascade)
+  action       Action  @relation(fields: [actionId], references: [id], onDelete: Cascade)
+
+  @@unique([actionId, date])
+  @@index([systemId])
+  @@index([areaId])
+  @@index([date])
+  @@index([systemId, date])
+  @@map("checkins")
+}
+
+// ─── Daily Energy ────────────────────────────────────────
+
+model DailyEnergy {
+  id           String       @id @default(cuid())
+  userId       String       @map("user_id")
+  date         String       // "YYYY-MM-DD"
+  globalLevel  EffortLevel  @map("global_level")
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+
+  user         UserProfile  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  overrides    SystemEnergyOverride[]
+
+  @@unique([userId, date])
+  @@map("daily_energies")
+}
+
+model SystemEnergyOverride {
+  id            String       @id @default(cuid())
+  dailyEnergyId String       @map("daily_energy_id")
+  systemId      String       @map("system_id")
+  level         EffortLevel
+
+  dailyEnergy   DailyEnergy  @relation(fields: [dailyEnergyId], references: [id], onDelete: Cascade)
+
+  @@unique([dailyEnergyId, systemId])
+  @@map("system_energy_overrides")
+}
+
+// ─── Daily Reflection ────────────────────────────────────
+
+model DailyReflection {
+  id        String      @id @default(cuid())
+  userId    String      @map("user_id")
+  date      String      // "YYYY-MM-DD"
+  text      String
+  createdAt DateTime    @default(now()) @map("created_at")
+  updatedAt DateTime    @updatedAt @map("updated_at")
+
+  user      UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@map("daily_reflections")
+}
+
+// ─── AI Coach ────────────────────────────────────────────
+
+enum ConversationType {
+  coaching
+  system_builder
+  general_chat
+}
+
+model AiConversation {
+  id        String            @id @default(cuid())
+  userId    String            @map("user_id")
+  type      ConversationType  @default(general_chat)
+  title     String?
+  createdAt DateTime          @default(now()) @map("created_at")
+  updatedAt DateTime          @updatedAt @map("updated_at")
+
+  user      UserProfile       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages  AiMessage[]
+
+  @@index([userId])
+  @@map("ai_conversations")
+}
+
+enum MessageRole {
+  user
+  assistant
+  system
+}
+
+model AiMessage {
+  id             String         @id @default(cuid())
+  conversationId String         @map("conversation_id")
+  role           MessageRole
+  content        String
+  metadata       Json?          // structured data: suggested systems, actions, etc.
+  createdAt      DateTime       @default(now()) @map("created_at")
+
+  conversation   AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@map("ai_messages")
+}

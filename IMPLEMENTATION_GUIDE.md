@@ -54,7 +54,7 @@ Everything needed before writing a single business feature.
 
 ---
 
-### Step 1.3 — Prisma Setup & Database Schema
+### Step 1.3 — Prisma Setup & Database Schema - DONE
 
 **Spec refs:** §2.2 (full Prisma schema), §2.3 (design decisions), §2.4 (PrismaService)
 
@@ -548,7 +548,7 @@ Each step delivers a fully working vertical slice: controller + service + DTOs +
 Phase 1: Project Scaffold & Infrastructure
   [ ] 1.1 — Initialize NestJS Project
   [x] 1.2 — Docker & Local Dev Environment
-  [ ] 1.3 — Prisma Setup & Database Schema
+  [x] 1.3 — Prisma Setup & Database Schema
   [ ] 1.4 — App Module Shell, Global Prefix & main.ts
   [ ] 1.5 — Common Infrastructure
   [ ] 1.6 — Shared Schemas & Constants
