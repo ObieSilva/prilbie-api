@@ -25,6 +25,7 @@ type PinoSerializedReq = {
       validate: validateEnv,
     }),
     LoggerModule.forRoot({
+      forRoutes: ['{*path}'],
       pinoHttp: {
         level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
         transport:
