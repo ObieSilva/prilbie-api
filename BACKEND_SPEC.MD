@@ -139,6 +139,7 @@ model UserProfile {
   lastMilestoneSeen Int       @default(0) @map("last_milestone_seen")
   focusedActionId   String?   @map("focused_action_id")
   focusedAt         DateTime? @map("focused_at")
+  deletedAt         DateTime? @map("deleted_at")
   createdAt         DateTime  @default(now()) @map("created_at")
   updatedAt         DateTime  @updatedAt @map("updated_at")
 
@@ -270,6 +271,7 @@ model Checkin {
   area         Area    @relation(fields: [areaId], references: [id], onDelete: Cascade)
   action       Action  @relation(fields: [actionId], references: [id], onDelete: Cascade)
 
+  @@unique([actionId, date])
   @@index([systemId])
   @@index([areaId])
   @@index([date])
@@ -387,44 +389,63 @@ model AiMessage {
    create and are never accepted from the client. This trades a small write overhead for
    major query performance gains on reads (no 3-table joins for filtering/grouping).
 
-5. **Soft deletes** on System, Area, ActionBundle, and Action via nullable `deletedAt`.
-   All list queries filter `WHERE deleted_at IS NULL`. A scheduled job hard-deletes rows
-   older than 30 days. This protects against accidental data loss and supports undo.
+5. **One checkin per action per day.** The `@@unique([actionId, date])` constraint
+   prevents duplicate check-ins for the same action on the same date. The service layer
+   returns a `409 Conflict` if the user attempts to check in the same action twice on
+   the same day.
 
-6. **sortOrder** on System, Area, and ActionBundle lets users reorder items.
+6. **Soft deletes** on UserProfile, System, Area, ActionBundle, and Action via nullable
+   `deletedAt`. All list queries filter `WHERE deleted_at IS NULL`. A scheduled job
+   hard-deletes rows older than 30 days. This protects against accidental data loss
+   and supports undo. `DELETE /api/v1/users/me` sets `deletedAt` on the UserProfile;
+   a Clerk user deletion webhook triggers the hard-delete after the retention period.
+
+7. **sortOrder** on System, Area, and ActionBundle lets users reorder items.
    Default 0; clients send explicit ordering via PATCH.
 
-7. **timezone** on UserProfile for correct date boundaries. The frontend sends dates as
+8. **timezone** on UserProfile for correct date boundaries. The frontend sends dates as
    `YYYY-MM-DD` strings based on the user's local time; the backend validates streak
    calculations and "today" logic against this timezone.
 
-8. **focusedActionId / focusedAt** on UserProfile persists the user's focused action
+9. **focusedActionId / focusedAt** on UserProfile persists the user's focused action
    across sessions. This was previously ephemeral in the frontend's Zustand store.
 
-9. **clerkUserId** on `UserProfile` maps to Clerk's external user ID. All other tables
-   reference the internal `UserProfile.id`.
+10. **clerkUserId** on `UserProfile` maps to Clerk's external user ID. All other tables
+    reference the internal `UserProfile.id`.
 
-10. **Neon PostgreSQL** — Serverless PostgreSQL. Use `@prisma/adapter-neon` with the
+11. **Neon PostgreSQL** — Serverless PostgreSQL. Use `@prisma/adapter-neon` with the
     `ws` WebSocket library for serverless connection pooling. No need for PgBouncer.
 
-### 2.4 Neon + Prisma Connection Setup
+### 2.4 Prisma Connection Setup (Environment-Aware)
+
+The `PrismaService` conditionally uses the Neon serverless adapter in production
+(Cloud Run) and the standard Prisma TCP connection for local development (Docker
+Compose Postgres). This avoids the overhead of WebSocket tunnelling during local
+development and keeps `docker-compose up` simple.
 
 ```typescript
 // src/prisma/prisma.service.ts
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
-import { PrismaNeon } from '@prisma/adapter-neon';
-import { Pool, neonConfig } from '@neondatabase/serverless';
-import ws from 'ws';
-
-neonConfig.webSocketConstructor = ws;
 
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   constructor() {
-    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-    const adapter = new PrismaNeon(pool);
-    super({ adapter });
+    const useNeon = process.env.USE_NEON === 'true';
+
+    if (useNeon) {
+      // Dynamic import avoids bundling ws/neon in local dev
+      const { Pool, neonConfig } = require('@neondatabase/serverless');
+      const { PrismaNeon } = require('@prisma/adapter-neon');
+      const ws = require('ws');
+      neonConfig.webSocketConstructor = ws;
+
+      const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+      const adapter = new PrismaNeon(pool);
+      super({ adapter });
+    } else {
+      super();
+    }
   }
 
   async onModuleInit() {
@@ -436,6 +457,8 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   }
 }
 ```
+
+Set `USE_NEON=true` in production (Cloud Run) and omit it (or set to `false`) locally.
 
 ---
 
@@ -823,8 +846,9 @@ Outside `/api/v1` prefix.
 **POST /api/v1/users/me/onboard — OnboardingDto:**
 
 This is a transactional endpoint. One API call creates everything atomically:
-sets userName, creates first system + "General" area + action bundle (3 actions),
-sets onboarded=true, sets accountCreatedAt.
+sets userName and timezone, creates first system + "General" area + action bundle
+(3 actions), and sets onboarded=true. The `accountCreatedAt` field in API responses
+is derived from `UserProfile.createdAt` — no separate column is needed.
 
 ```typescript
 {
@@ -868,6 +892,17 @@ sets onboarded=true, sets accountCreatedAt.
   replacedHabit?: string;    // max 200 chars, trimmed
 }
 ```
+
+**PATCH /api/v1/systems/reorder — ReorderSystemsDto:**
+
+```typescript
+{
+  orderedIds: string[];  // system IDs in desired order; index becomes sortOrder
+}
+```
+
+The service sets `sortOrder = index` for each ID in the array within a single
+transaction. Returns 400 if any ID is not owned by the current user or does not exist.
 
 **GET /api/v1/systems response (list):**
 
@@ -1014,15 +1049,20 @@ in a Prisma transaction.
 ```typescript
 {
   actionId: string;          // the specific action completed
-  energyLevel: EffortLevel;  // "baseline" | "normal" | "stretch"
   date: string;              // "YYYY-MM-DD"
   note?: string;             // max 500 chars, trimmed
 }
 ```
 
-IMPORTANT: The service resolves `systemId` and `areaId` from the `actionId`'s
-bundle → area → system chain. The client only sends `actionId`. This prevents
-mismatches and enforces referential integrity server-side.
+IMPORTANT: The service resolves `systemId`, `areaId`, AND `energyLevel` from the
+`actionId`'s chain. The client only sends `actionId` and `date`. This prevents
+mismatches and enforces referential integrity server-side:
+- `energyLevel` ← `action.effortLevel`
+- `areaId` ← `action.bundle.areaId`
+- `systemId` ← `action.bundle.area.systemId`
+
+UNIQUENESS: A user can only check in a given action once per date. Attempting to
+create a duplicate checkin for the same `actionId` + `date` returns `409 Conflict`.
 
 **POST response** includes `expansionOffers` — next-tier actions to offer
 after completing the checked-in action:
@@ -1225,7 +1265,7 @@ A single endpoint that returns everything the Today page needs in one round-trip
     timezone: string;
     lastReviewDate: string | null;
     lastMilestoneSeen: number;
-    accountCreatedAt: string | null;
+    accountCreatedAt: string | null;    // maps to UserProfile.createdAt (ISO string)
     focusedActionId: string | null;
   };
   energy: {
@@ -1285,6 +1325,7 @@ otherwise need on page load.
 | POST   | `/api/v1/ai/conversations`                       | Start new conversation         |
 | GET    | `/api/v1/ai/conversations/:id`                   | Get conversation with messages |
 | POST   | `/api/v1/ai/conversations/:id/messages`          | Send message, get AI reply     |
+| GET    | `/api/v1/ai/conversations/:id/stream`            | Stream AI reply via SSE        |
 | DELETE | `/api/v1/ai/conversations/:id`                   | Delete conversation            |
 | POST   | `/api/v1/ai/suggest/systems`                     | AI suggests systems            |
 | POST   | `/api/v1/ai/suggest/actions`                     | AI suggests action bundles     |
@@ -1465,6 +1506,17 @@ export const UpdateSystemSchema = z.object({
 export type UpdateSystemDto = z.infer<typeof UpdateSystemSchema>;
 ```
 
+```typescript
+// src/systems/dto/reorder-systems.dto.ts
+import { z } from 'zod';
+
+export const ReorderSystemsSchema = z.object({
+  orderedIds: z.array(z.string().min(1)).min(1),
+});
+
+export type ReorderSystemsDto = z.infer<typeof ReorderSystemsSchema>;
+```
+
 ### 6.3 Area DTOs
 
 ```typescript
@@ -1501,11 +1553,10 @@ export type UpdateBundleDto = z.infer<typeof UpdateBundleSchema>;
 ```typescript
 // src/checkins/dto/create-checkin.dto.ts
 import { z } from 'zod';
-import { EffortLevelSchema, DateStringSchema } from '../../common/schemas/enums';
+import { DateStringSchema } from '../../common/schemas/enums';
 
 export const CreateCheckinSchema = z.object({
   actionId: z.string().min(1),
-  energyLevel: EffortLevelSchema,
   date: DateStringSchema,
   note: z.string().max(500).trim().optional(),
 });
@@ -1740,12 +1791,19 @@ nextMilestone = MILESTONES.find(m => m.days > lastMilestoneSeen && m.days <= str
 
 Conditions (evaluated by frontend using data from GET /api/v1/today):
 
-1. Account is at least 7 days old (accountCreatedAt + 7 days <= today)
-2. lastReviewDate is null OR was more than 7 days ago
-3. User has at least one system
-4. Energy has been set for today
+1. Account is at least 7 days old (`accountCreatedAt` + 7 days <= today)
+2. Today is **Sunday** (`new Date().getDay() === 0`)
+3. Review has **not** been completed this calendar week: `lastReviewDate` is null
+   OR `lastReviewDate` is before Monday of the current week
+4. User has at least one system
 
-The backend returns the raw data; the frontend evaluates these conditions.
+Note: The energy-set-for-today check is NOT part of the review eligibility logic.
+It is an implicit UI gate — the energy modal blocks all other interactions until
+energy is set, so in practice the user cannot reach the review prompt without
+having set energy. But the eligibility function itself does not check it.
+
+The backend returns the raw data (`accountCreatedAt`, `lastReviewDate`, systems
+array); the frontend evaluates these conditions client-side.
 
 ### 7.7 Expansion Offers
 
@@ -1760,6 +1818,15 @@ Preference: same area first, then other areas within the system. Sort by action 
 
 Returned in the POST /api/v1/checkins response so the frontend can display them
 immediately in the completion modal.
+
+**409 Conflict handling for expansion offers:**
+The expansion offers include an `alreadyDoneToday` flag for each offered action.
+The frontend SHOULD use this flag to either hide already-completed actions or
+render them in a disabled state (the current frontend labels them "(Already done
+today)" in `completion-view.tsx`). If the user somehow taps a completed action,
+the POST /api/v1/checkins call returns `409 Conflict`. The frontend API client
+should handle 409 gracefully — suppress the error and show a toast like
+"Already checked in today" rather than displaying a generic error.
 
 ### 7.8 Today Display Actions
 
@@ -1882,24 +1949,48 @@ JSON mode depending on the AI provider.
 
 ### 8.6 Streaming Responses
 
-For chat conversations, use Server-Sent Events (SSE) for streaming AI responses:
+NestJS `@Sse()` only supports GET requests, so AI streaming uses a two-step pattern:
+
+1. **POST** `/api/v1/ai/conversations/:id/messages` — saves the user's message and
+   returns `{ messageId: string }` (the pending assistant message ID).
+2. **GET** `/api/v1/ai/conversations/:id/stream?messageId=xyz` — opens an SSE stream
+   that delivers the AI response token-by-token.
 
 ```typescript
-@Sse('conversations/:id/stream')
-streamMessage(
+// Step 1: POST saves user message, kicks off AI generation
+@Post('conversations/:id/messages')
+async sendMessage(
   @Param('id') id: string,
-  @Body() dto: SendMessageDto,
+  @Body(new ZodValidationPipe(SendMessageSchema)) dto: SendMessageDto,
   @CurrentUser() user: { userId: string },
 ) {
-  return this.aiCoachService.streamResponse(id, dto, user.userId);
+  return this.aiCoachService.sendMessage(id, dto, user.userId);
+  // Returns { userMessage: AiMessage, assistantMessageId: string }
+}
+
+// Step 2: GET streams the AI response via SSE
+@Sse('conversations/:id/stream')
+streamResponse(
+  @Param('id') id: string,
+  @Query('messageId') messageId: string,
+  @CurrentUser() user: { userId: string },
+): Observable<MessageEvent> {
+  return this.aiCoachService.streamResponse(id, messageId, user.userId);
 }
 ```
 
 The service should:
-1. Save the user's message to the database
-2. Build the system prompt with user context
-3. Stream the AI response
-4. Save the complete assistant message to the database when streaming finishes
+1. On POST: save the user message, create a placeholder assistant message, and return
+   both IDs. Optionally begin AI generation in the background.
+2. On GET (SSE): build the system prompt with user context, stream tokens from the AI
+   provider as SSE `data` events, and update the assistant message row with the
+   complete content when streaming finishes.
+3. Send a final SSE event `{ event: 'done', data: { messageId } }` so the client
+   knows the stream is complete.
+
+The non-streaming POST endpoint from Section 5.13 remains available as a simpler
+alternative — it saves the user message, calls the AI synchronously, saves the
+assistant reply, and returns both in a single response.
 
 ---
 
@@ -1911,21 +2002,62 @@ Momentum endpoints compute streaks, totals, and per-system stats from raw checki
 on every request. Without caching, `GET /api/v1/momentum/overview` scans all checkin
 rows for the user, and `GET /api/v1/today` joins across 5+ tables.
 
-### 9.2 Cache Provider
+### 9.2 Cache Provider (Strategy Pattern)
 
-Use **Upstash Redis** (serverless, pay-per-request) — natural fit with Neon and
-Cloud Run. Alternative: Google Memorystore.
+The `CacheService` is backed by an interface so the implementation can swap between
+**in-memory** (local dev, tests) and **Upstash Redis** (staging/production) without
+changing consuming code.
 
 ```typescript
-// src/cache/cache.service.ts
+// src/cache/cache.interface.ts
+export interface ICacheService {
+  get<T>(key: string): Promise<T | null>;
+  set(key: string, value: unknown, ttlSeconds: number): Promise<void>;
+  del(key: string): Promise<void>;
+  delPattern(pattern: string): Promise<void>;
+}
+```
+
+```typescript
+// src/cache/memory-cache.service.ts — local dev & tests
+@Injectable()
+export class MemoryCacheService implements ICacheService {
+  private store = new Map<string, { value: unknown; expiresAt: number }>();
+
+  async get<T>(key: string): Promise<T | null> {
+    const entry = this.store.get(key);
+    if (!entry || entry.expiresAt < Date.now()) {
+      this.store.delete(key);
+      return null;
+    }
+    return entry.value as T;
+  }
+
+  async set(key: string, value: unknown, ttlSeconds: number): Promise<void> {
+    this.store.set(key, { value, expiresAt: Date.now() + ttlSeconds * 1000 });
+  }
+
+  async del(key: string): Promise<void> { this.store.delete(key); }
+
+  async delPattern(pattern: string): Promise<void> {
+    const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$');
+    for (const k of this.store.keys()) {
+      if (regex.test(k)) this.store.delete(k);
+    }
+  }
+}
+```
+
+```typescript
+// src/cache/redis-cache.service.ts — production (Upstash)
 import { Injectable } from '@nestjs/common';
 import { Redis } from '@upstash/redis';
 
 @Injectable()
-export class CacheService {
+export class RedisCacheService implements ICacheService {
   private redis = new Redis({
-    url: process.env.UPSTASH_REDIS_URL,
-    token: process.env.UPSTASH_REDIS_TOKEN,
+    url: process.env.UPSTASH_REDIS_URL!,
+    token: process.env.UPSTASH_REDIS_TOKEN!,
   });
 
   async get<T>(key: string): Promise<T | null> { ... }
@@ -1934,6 +2066,19 @@ export class CacheService {
   async delPattern(pattern: string): Promise<void> { ... }
 }
 ```
+
+```typescript
+// src/cache/cache.module.ts — provider selection
+const cacheProvider = {
+  provide: 'CACHE_SERVICE',
+  useClass: process.env.UPSTASH_REDIS_URL
+    ? RedisCacheService
+    : MemoryCacheService,
+};
+```
+
+This keeps local development zero-dependency (no Redis container required)
+while guaranteeing consistent cache semantics across environments.
 
 ### 9.3 Cache Keys & Invalidation
 
@@ -2307,6 +2452,7 @@ AI_MODEL=gpt-4o
 PORT=8080
 NODE_ENV=development
 CORS_ORIGINS=http://localhost:3000
+USE_NEON=false                           # set to "true" in production (Cloud Run)
 ```
 
 ---
@@ -2490,12 +2636,13 @@ When the backend is production-ready, the frontend needs these changes.
 | 37 | POST   | /api/v1/ai/conversations                         | AI Coach    | JWT        | Start conversation         |
 | 38 | GET    | /api/v1/ai/conversations/:id                     | AI Coach    | JWT        | Get conversation           |
 | 39 | POST   | /api/v1/ai/conversations/:id/messages            | AI Coach    | JWT        | Send message               |
-| 40 | DELETE | /api/v1/ai/conversations/:id                     | AI Coach    | JWT        | Delete conversation        |
-| 41 | POST   | /api/v1/ai/suggest/systems                       | AI Coach    | JWT        | Get system suggestions     |
-| 42 | POST   | /api/v1/ai/suggest/actions                       | AI Coach    | JWT        | Get bundle suggestions     |
-| 43 | POST   | /api/v1/ai/apply-suggestion                      | AI Coach    | JWT        | Apply AI suggestion        |
+| 40 | GET    | /api/v1/ai/conversations/:id/stream              | AI Coach    | JWT        | Stream AI reply (SSE)      |
+| 41 | DELETE | /api/v1/ai/conversations/:id                     | AI Coach    | JWT        | Delete conversation        |
+| 42 | POST   | /api/v1/ai/suggest/systems                       | AI Coach    | JWT        | Get system suggestions     |
+| 43 | POST   | /api/v1/ai/suggest/actions                       | AI Coach    | JWT        | Get bundle suggestions     |
+| 44 | POST   | /api/v1/ai/apply-suggestion                      | AI Coach    | JWT        | Apply AI suggestion        |
 
-Total: 43 endpoints
+Total: 44 endpoints
 
 ---
 
