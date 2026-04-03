@@ -14,6 +14,7 @@ import { AuthModule } from './auth/auth.module';
 import { CacheModule } from './cache/cache.module';
 import { HealthModule } from './health/health.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { UsersModule } from './users/users.module';
 
 /** Argument to nestjs-pino `serializers.req` (pino-http request wrapper). */
 type PinoSerializedReq = {
@@ -52,6 +53,7 @@ type PinoSerializedReq = {
     CacheModule,
     AuthModule,
     HealthModule,
+    UsersModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
