@@ -10,6 +10,7 @@ import { pinoGenReqId } from './common/constants/http-headers';
 import { ClerkAuthGuard } from './common/guards/clerk-auth.guard';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { CorrelationIdMiddleware } from './common/middleware/correlation-id.middleware';
+import { CacheModule } from './cache/cache.module';
 import { PrismaModule } from './prisma/prisma.module';
 
 /** Argument to nestjs-pino `serializers.req` (pino-http request wrapper). */
@@ -46,6 +47,7 @@ type PinoSerializedReq = {
     }),
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
     PrismaModule,
+    CacheModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
