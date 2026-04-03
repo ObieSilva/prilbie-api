@@ -547,7 +547,7 @@ Each step delivers a fully working vertical slice: controller + service + DTOs +
 ```
 Phase 1: Project Scaffold & Infrastructure
   [ ] 1.1 — Initialize NestJS Project
-  [ ] 1.2 — Docker & Local Dev Environment
+  [x] 1.2 — Docker & Local Dev Environment
   [ ] 1.3 — Prisma Setup & Database Schema
   [ ] 1.4 — App Module Shell, Global Prefix & main.ts
   [ ] 1.5 — Common Infrastructure
