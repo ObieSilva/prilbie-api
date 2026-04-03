@@ -8,6 +8,10 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { verifyToken } from '@clerk/backend';
+import {
+  type AuthenticatedRequest,
+  readBearerToken,
+} from '../types/authenticated-request';
 
 export const IS_PUBLIC_KEY = 'isPublic';
 export const Public = () => SetMetadata(IS_PUBLIC_KEY, true);
@@ -25,10 +29,10 @@ export class ClerkAuthGuard implements CanActivate {
     ]);
     if (isPublic) return true;
 
-    const request = context.switchToHttp().getRequest();
-    const token = request.headers.authorization?.replace(/^Bearer\s+/i, '');
+    const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
+    const token = readBearerToken(request.headers);
 
-    if (!token) {
+    if (token === undefined) {
       throw new UnauthorizedException('Missing authorization token');
     }
 

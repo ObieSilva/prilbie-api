@@ -10,6 +10,13 @@ import { ClerkAuthGuard } from './common/guards/clerk-auth.guard';
 import { CorrelationIdMiddleware } from './common/middleware/correlation-id.middleware';
 import { PrismaModule } from './prisma/prisma.module';
 
+/** Argument to nestjs-pino `serializers.req` (pino-http request wrapper). */
+type PinoSerializedReq = {
+  method?: string;
+  url?: string;
+  raw?: { auth?: { userId?: string } };
+};
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -26,7 +33,7 @@ import { PrismaModule } from './prisma/prisma.module';
             : undefined,
         genReqId: pinoGenReqId,
         serializers: {
-          req: (req) => ({
+          req: (req: PinoSerializedReq) => ({
             method: req.method,
             url: req.url,
             userId: req.raw?.auth?.userId,
