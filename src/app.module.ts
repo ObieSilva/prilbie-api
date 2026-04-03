@@ -14,6 +14,7 @@ import { AuthModule } from './auth/auth.module';
 import { CacheModule } from './cache/cache.module';
 import { HealthModule } from './health/health.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { SystemsModule } from './systems/systems.module';
 import { UsersModule } from './users/users.module';
 
 /** Argument to nestjs-pino `serializers.req` (pino-http request wrapper). */
@@ -53,6 +54,7 @@ type PinoSerializedReq = {
     CacheModule,
     AuthModule,
     HealthModule,
+    SystemsModule,
     UsersModule,
   ],
   providers: [

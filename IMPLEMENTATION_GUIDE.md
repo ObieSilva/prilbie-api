@@ -18,7 +18,7 @@
 
 ---
 
-## Phase 1: Project Scaffold & Infrastructure
+## Phase 1: Project Scaffold & Infrastructure - DONE
 
 Everything needed before writing a single business feature.
 
@@ -77,7 +77,7 @@ Everything needed before writing a single business feature.
 **Do:**
 
 - Implement bootstrap with the **same behavior** as §13 (Swagger, helmet, compression, CORS, global prefix with exclusions for health + webhook routes, shutdown hooks, pino logger). A thin `src/main.ts` plus a shared `src/configure-app.ts` (called from `main` and e2e) is the **preferred** pattern for DRY tests; §13’s inline `main.ts` remains the behavioral reference.
-- Add `**src/config/env.schema.ts`** — Zod schema + `validateEnv` for `ConfigModule.forRoot({ validate })` per §12.6 (`DATABASE_URL` always required; `PORT` 1–65535 default 3001; `CLERK_*` required only when `NODE_ENV=production`; `test`/`development` may omit Clerk for partial local runs).
+- Add `**src/config/env.schema.ts`** — Zod schema + `validateEnv` for `ConfigModule.forRoot({ validate })` per §12.6 (`DATABASE_URL` always required; `PORT` 1–65535 default 3001; `CLERK_`* required only when `NODE_ENV=production`; `test`/`development` may omit Clerk for partial local runs).
 - In `src/main.ts`, listen using `**ConfigService.getOrThrow('PORT')`** after `NestFactory.create` so the port matches validated config.
 - Create `src/app.module.ts` — imports `PrismaModule`, `LoggerModule` (§10.1), `ThrottlerModule` (§5.1), `validate` on `ConfigModule`, and applies `CorrelationIdMiddleware`.
 - Register `**ThrottlerGuard`** and `**ClerkAuthGuard`** as `**APP_GUARD`** globally in `AppModule` (global limits require the throttler guard; see §5.1). The Clerk guard file is specified in Step 1.5 — create it here if needed so the module compiles.
@@ -150,7 +150,7 @@ Everything needed before writing a single business feature.
 
 ---
 
-## Phase 2: Auth & User Management
+## Phase 2: Auth & User Management - DONE
 
 ### Step 2.1 — Auth Module (Clerk Webhook) - DONE
 
@@ -193,11 +193,11 @@ Everything needed before writing a single business feature.
 
 ---
 
-## Phase 3: Core CRUD — Systems, Areas, Bundles
+## Phase 3: Core CRUD — Systems, Areas, Bundles 
 
 Each step delivers a fully working vertical slice: controller + service + DTOs + Zod validation.
 
-### Step 3.1 — Systems Module
+### Step 3.1 — Systems Module - DONE
 
 **Spec refs:** §5.5, §6.2, §7.4 (system health)
 
