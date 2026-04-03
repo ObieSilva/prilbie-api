@@ -40,7 +40,7 @@ Everything needed before writing a single business feature.
 
 ---
 
-### Step 1.2 — Docker & Local Dev Environment
+### Step 1.2 — Docker & Local Dev Environment - DONE
 
 **Spec refs:** §12.1 (Dockerfile), §12.2 (docker-compose.yml)
 
