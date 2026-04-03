@@ -22,11 +22,12 @@
 
 Everything needed before writing a single business feature.
 
-### Step 1.1 — Initialize NestJS Project
+### Step 1.1 — Initialize NestJS Project - DONE
 
 **Spec refs:** §1.1, §4 (project structure), Appendix C (dependencies)
 
 **Do:**
+
 - Initialize a new NestJS project using the NestJS CLI inside the repo root (the app lives at the repo root, NOT in a `backend/` subfolder — adapt the §4 tree accordingly).
 - Configure `tsconfig.json` with `strict: true`.
 - Install **production dependencies** from Appendix C.
@@ -44,6 +45,7 @@ Everything needed before writing a single business feature.
 **Spec refs:** §12.1 (Dockerfile), §12.2 (docker-compose.yml)
 
 **Do:**
+
 - Create `Dockerfile` exactly as specified in §12.1.
 - Create `docker-compose.yml` exactly as specified in §12.2.
 - Ensure `docker-compose up db` starts a working PostgreSQL 16 instance.
@@ -57,6 +59,7 @@ Everything needed before writing a single business feature.
 **Spec refs:** §2.2 (full Prisma schema), §2.3 (design decisions), §2.4 (PrismaService)
 
 **Do:**
+
 - Create `prisma/schema.prisma` with the complete schema from §2.2 (all models, enums, indexes, maps).
 - Create `src/prisma/prisma.module.ts` — global module exporting `PrismaService`.
 - Create `src/prisma/prisma.service.ts` — environment-aware connection from §2.4 (Neon adapter in prod, standard TCP locally).
@@ -72,6 +75,7 @@ Everything needed before writing a single business feature.
 **Spec refs:** §1.3 (API versioning), §13 (main.ts with Swagger, helmet, compression, CORS, prefix)
 
 **Do:**
+
 - Create `src/main.ts` exactly as specified in §13 (Swagger, helmet, compression, CORS, global prefix with exclusions for health + webhook routes, shutdown hooks, pino logger).
 - Create `src/app.module.ts` — imports `PrismaModule`, `LoggerModule` (§10.1), `ThrottlerModule` (§5.1), and applies `CorrelationIdMiddleware`.
 - Register `ClerkAuthGuard` as `APP_GUARD` globally in `AppModule` (will be created in Step 1.6).
@@ -85,6 +89,7 @@ Everything needed before writing a single business feature.
 **Spec refs:** §3.2, §3.3, §5.0, §6.10, §10.2
 
 **Do:**
+
 - Create `src/common/guards/clerk-auth.guard.ts` — ClerkAuthGuard from §3.2 (includes `@Public()` decorator + `IS_PUBLIC_KEY`).
 - Create `src/common/decorators/current-user.decorator.ts` — from §3.3.
 - Create `src/common/pipes/zod-validation.pipe.ts` — from §6.10.
@@ -101,6 +106,7 @@ Everything needed before writing a single business feature.
 **Spec refs:** §6.1 (enums.ts, shared.ts), §6.11 (dependency map), §7.2–§7.5 (constants), Appendix E (icons)
 
 **Do:**
+
 - Create `src/common/schemas/enums.ts` — `EffortLevelSchema`, `TimeAnchorSchema`, `ConversationTypeSchema`, `DateStringSchema`, `TimezoneSchema` from §6.1.
 - Create `src/common/schemas/shared.ts` — `TierInputSchema`, `BundleLevelsSchema` from §6.1.
 - Create `src/common/constants/momentum.ts` — `MOMENTUM_POINTS`, `MOMENTUM_TIERS`, `STREAK_MILESTONES` from §7.2, §7.3, §7.5.
@@ -116,6 +122,7 @@ Everything needed before writing a single business feature.
 **Spec refs:** §9.1–§9.3
 
 **Do:**
+
 - Create `src/cache/cache.interface.ts` — `ICacheService` interface from §9.2.
 - Create `src/cache/memory-cache.service.ts` — in-memory implementation from §9.2.
 - Create `src/cache/redis-cache.service.ts` — Upstash Redis implementation from §9.2.
@@ -130,6 +137,7 @@ Everything needed before writing a single business feature.
 **Spec refs:** §5.2
 
 **Do:**
+
 - Create `src/health/health.controller.ts` — `GET /health` (liveness) and `GET /health/ready` (readiness with DB check) from §5.2.
 - These routes are OUTSIDE `/api/v1` prefix (already excluded in main.ts).
 - Mark the controller with `@Public()` so the auth guard skips it.
@@ -145,6 +153,7 @@ Everything needed before writing a single business feature.
 **Spec refs:** §3.4, §5.3
 
 **Do:**
+
 - Create `src/auth/auth.module.ts`.
 - Create `src/auth/auth.controller.ts` — `POST /webhooks/clerk` handler from §3.4.
   - Verifies Svix webhook signature.
@@ -161,6 +170,7 @@ Everything needed before writing a single business feature.
 **Spec refs:** §5.4, §6.8 (OnboardingSchema), §6.9 (UpdateUserSchema)
 
 **Do:**
+
 - Create `src/users/dto/update-user.dto.ts` — from §6.9.
 - Create `src/users/dto/onboarding.dto.ts` — from §6.8 (imports `BundleLevelsSchema`).
 - Create `src/users/users.service.ts`:
@@ -188,6 +198,7 @@ Each step delivers a fully working vertical slice: controller + service + DTOs +
 **Spec refs:** §5.5, §6.2, §7.4 (system health)
 
 **Do:**
+
 - Create `src/systems/dto/create-system.dto.ts` — from §6.2 (with icon validation against `VALID_ICONS`).
 - Create `src/systems/dto/update-system.dto.ts` — from §6.2.
 - Create `src/systems/dto/reorder-systems.dto.ts` — from §6.2.
@@ -210,6 +221,7 @@ Each step delivers a fully working vertical slice: controller + service + DTOs +
 **Spec refs:** §5.6, §6.3
 
 **Do:**
+
 - Create `src/areas/dto/create-area.dto.ts` — from §6.3.
 - Create `src/areas/dto/update-area.dto.ts` — update with optional name and sortOrder.
 - Create `src/areas/areas.service.ts`:
@@ -229,6 +241,7 @@ Each step delivers a fully working vertical slice: controller + service + DTOs +
 **Spec refs:** §5.7, §6.4
 
 **Do:**
+
 - Create `src/action-bundles/dto/create-bundle.dto.ts` — imports `BundleLevelsSchema` from shared (§6.4).
 - Create `src/action-bundles/dto/update-bundle.dto.ts` — imports `BundleLevelsSchema` from shared (§6.4).
 - Create `src/action-bundles/action-bundles.service.ts`:
@@ -250,6 +263,7 @@ Each step delivers a fully working vertical slice: controller + service + DTOs +
 **Spec refs:** §5.8, §6.5, §7.7 (expansion offers), §9.3 (cache invalidation)
 
 **Do:**
+
 - Create `src/checkins/dto/create-checkin.dto.ts` — from §6.5.
 - Create `src/checkins/checkins.service.ts`:
   - `list(userId, filters)` — with query params: date, systemId, from, to, page, pageSize. Paginated.
@@ -271,6 +285,7 @@ Each step delivers a fully working vertical slice: controller + service + DTOs +
 **Spec refs:** §5.9, §6.6
 
 **Do:**
+
 - Create `src/energy/dto/set-global-energy.dto.ts` — from §6.6.
 - Create `src/energy/dto/set-system-energy.dto.ts` — from §6.6.
 - Create `src/energy/energy.service.ts`:
@@ -289,6 +304,7 @@ Each step delivers a fully working vertical slice: controller + service + DTOs +
 **Spec refs:** §5.10, §6.7
 
 **Do:**
+
 - Create `src/reflections/dto/upsert-reflection.dto.ts` — from §6.7.
 - Create `src/reflections/reflections.service.ts`:
   - `getByDate(userId, date)` — returns reflection or 404.
@@ -307,6 +323,7 @@ Each step delivers a fully working vertical slice: controller + service + DTOs +
 **Spec refs:** §5.11, §7.1 (streak), §7.2 (points), §7.3 (tiers), §9.3 (caching)
 
 **Do:**
+
 - Create `src/momentum/momentum.service.ts`:
   - `getOverview(userId)` — §5.11: streak (§7.1), totals, tier (§7.3), per-system stats. Cache result.
   - `getWeekGrid(userId)` — last 7 days with max effort level per day.
@@ -326,6 +343,7 @@ Each step delivers a fully working vertical slice: controller + service + DTOs +
 **Spec refs:** §5.12
 
 **Do:**
+
 - Create `src/today/today.service.ts`:
   - `getTodayPayload(userId)` — assembles the full `TodayPayload` from §5.12 in a single method. Aggregates data from UserProfile, Systems (with health), Areas, Bundles, Actions, today's checkins, energy, reflection, streak, weekly momentum, tier. Cache result.
 - Create `src/today/today.controller.ts` — `GET /today`.
@@ -342,6 +360,7 @@ Each step delivers a fully working vertical slice: controller + service + DTOs +
 **Spec refs:** §5.13, §8.1–§8.6
 
 **Do:**
+
 - Create `src/ai-coach/ai-coach.prompts.ts` — `buildSystemPrompt()` from §8.2.
 - Create `src/ai-coach/dto/create-conversation.dto.ts`.
 - Create `src/ai-coach/dto/send-message.dto.ts`.
@@ -371,6 +390,7 @@ Each step delivers a fully working vertical slice: controller + service + DTOs +
 **Spec refs:** §5.1
 
 **Do:**
+
 - Configure `@nestjs/throttler` in `AppModule` with the four rate limit scopes from §5.1:
   - Global: 100 req / 60s.
   - Write endpoints: 30 req / 60s.
@@ -387,6 +407,7 @@ Each step delivers a fully working vertical slice: controller + service + DTOs +
 **Spec refs:** §13
 
 **Do:**
+
 - Add `@ApiTags(...)` to every controller.
 - Add `@ApiBearerAuth('clerk-jwt')` to all authenticated controllers.
 - Use `nestjs-zod`'s `createZodDto` to auto-generate Swagger schemas from Zod definitions where beneficial.
@@ -403,6 +424,7 @@ Each step delivers a fully working vertical slice: controller + service + DTOs +
 **Spec refs:** §11.1–§11.5
 
 **Do:**
+
 - Create `jest.config.ts` — with ts-jest, test paths.
 - Create `.env.test` — test database URL.
 - Create `test/setup.ts` — from §11.2 (migrate deploy, truncate between tests).
@@ -419,6 +441,7 @@ Each step delivers a fully working vertical slice: controller + service + DTOs +
 **Spec refs:** §11.1
 
 **Do:**
+
 - Write unit tests for business logic in these services (mocked Prisma):
   - `MomentumService` — streak calculation, tier assignment, points math.
   - `CheckinsService` — expansion offers logic, duplicate prevention, denormalization resolution.
@@ -434,6 +457,7 @@ Each step delivers a fully working vertical slice: controller + service + DTOs +
 **Spec refs:** §11.1
 
 **Do:**
+
 - Write integration tests (real test DB, mocked auth) for key workflows:
   - Onboarding flow: create user → onboard → verify system/area/bundle/actions exist.
   - Checkin flow: create system → create checkin → verify streak → delete checkin → verify streak resets.
@@ -453,6 +477,7 @@ Each step delivers a fully working vertical slice: controller + service + DTOs +
 **Spec refs:** §12.3, §12.4, §12.5
 
 **Do:**
+
 - Create `cloudbuild.yaml` from §12.3.
 - Set up GCP Secret Manager secrets for all env vars from §12.5.
 - Set up Artifact Registry repo.
@@ -478,40 +503,42 @@ Each step delivers a fully working vertical slice: controller + service + DTOs +
 
 ## Quick Reference: Spec Section → Implementation Step
 
-| Spec Section | Step |
-|---|---|
-| §1 Architecture Overview | 1.4 |
-| §2 Domain Model & Schema | 1.3 |
-| §3 Authentication (Clerk) | 1.5, 2.1 |
-| §4 Project Structure | 1.1 |
-| §5.0 Response Envelope | 1.5 |
-| §5.1 Rate Limiting | 7.1 |
-| §5.2 Health | 1.8 |
-| §5.3 Auth/Webhooks | 2.1 |
-| §5.4 Users | 2.2 |
-| §5.5 Systems | 3.1 |
-| §5.6 Areas | 3.2 |
-| §5.7 Action Bundles | 3.3 |
-| §5.8 Checkins | 4.1 |
-| §5.9 Daily Energy | 4.2 |
-| §5.10 Reflections | 4.3 |
-| §5.11 Momentum | 5.1 |
-| §5.12 Today | 5.2 |
-| §5.13 AI Coach | 6.1 |
-| §6 Zod Schemas | 1.6, then with each module |
-| §7 Business Logic | 1.6 (constants), then with each module |
-| §8 AI Coach Module | 6.1 |
-| §9 Caching Strategy | 1.7 |
-| §10 Logging & Observability | 1.4, 1.5 |
-| §11 Testing Strategy | 8.1–8.3 |
-| §12 Docker & Deployment | 1.2, 9.1 |
-| §13 Swagger | 1.4, 7.2 |
-| §14 Migration Strategy | 10 (reference only) |
-| Appendix A (Endpoints) | Cross-reference after Phase 6 |
-| Appendix B (Auth Rules) | Enforced in every service |
-| Appendix C (Dependencies) | 1.1 |
-| Appendix D (Frontend Types) | Reference only |
-| Appendix E (Icons) | 1.6 |
+
+| Spec Section                | Step                                   |
+| --------------------------- | -------------------------------------- |
+| §1 Architecture Overview    | 1.4                                    |
+| §2 Domain Model & Schema    | 1.3                                    |
+| §3 Authentication (Clerk)   | 1.5, 2.1                               |
+| §4 Project Structure        | 1.1                                    |
+| §5.0 Response Envelope      | 1.5                                    |
+| §5.1 Rate Limiting          | 7.1                                    |
+| §5.2 Health                 | 1.8                                    |
+| §5.3 Auth/Webhooks          | 2.1                                    |
+| §5.4 Users                  | 2.2                                    |
+| §5.5 Systems                | 3.1                                    |
+| §5.6 Areas                  | 3.2                                    |
+| §5.7 Action Bundles         | 3.3                                    |
+| §5.8 Checkins               | 4.1                                    |
+| §5.9 Daily Energy           | 4.2                                    |
+| §5.10 Reflections           | 4.3                                    |
+| §5.11 Momentum              | 5.1                                    |
+| §5.12 Today                 | 5.2                                    |
+| §5.13 AI Coach              | 6.1                                    |
+| §6 Zod Schemas              | 1.6, then with each module             |
+| §7 Business Logic           | 1.6 (constants), then with each module |
+| §8 AI Coach Module          | 6.1                                    |
+| §9 Caching Strategy         | 1.7                                    |
+| §10 Logging & Observability | 1.4, 1.5                               |
+| §11 Testing Strategy        | 8.1–8.3                                |
+| §12 Docker & Deployment     | 1.2, 9.1                               |
+| §13 Swagger                 | 1.4, 7.2                               |
+| §14 Migration Strategy      | 10 (reference only)                    |
+| Appendix A (Endpoints)      | Cross-reference after Phase 6          |
+| Appendix B (Auth Rules)     | Enforced in every service              |
+| Appendix C (Dependencies)   | 1.1                                    |
+| Appendix D (Frontend Types) | Reference only                         |
+| Appendix E (Icons)          | 1.6                                    |
+
 
 ---
 
@@ -564,3 +591,4 @@ Phase 9: Deployment
 Phase 10: Frontend Migration
   [ ] Reference only — see §14
 ```
+
