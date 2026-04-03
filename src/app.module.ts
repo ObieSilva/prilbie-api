@@ -14,6 +14,7 @@ import { AuthModule } from './auth/auth.module';
 import { CacheModule } from './cache/cache.module';
 import { HealthModule } from './health/health.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { ActionBundlesModule } from './action-bundles/action-bundles.module';
 import { AreasModule } from './areas/areas.module';
 import { SystemsModule } from './systems/systems.module';
 import { UsersModule } from './users/users.module';
@@ -55,6 +56,7 @@ type PinoSerializedReq = {
     CacheModule,
     AuthModule,
     HealthModule,
+    ActionBundlesModule,
     AreasModule,
     SystemsModule,
     UsersModule,

@@ -240,7 +240,7 @@ Each step delivers a fully working vertical slice: controller + service + DTOs +
 
 ---
 
-### Step 3.3 — Action Bundles Module
+### Step 3.3 — Action Bundles Module - DONE
 
 **Spec refs:** §5.7, §6.4
 
