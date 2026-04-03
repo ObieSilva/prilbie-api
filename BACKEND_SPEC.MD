@@ -472,6 +472,8 @@ using `@clerk/backend` and extracts the Clerk user ID from `payload.sub`.
 
 ### 3.2 Auth Guard Implementation
 
+Use **`verifyToken`** from `@clerk/backend` **v3** (standalone function). Older examples that call `createClerkClient().verifyToken` are obsolete for current SDK versions.
+
 ```typescript
 // src/common/guards/clerk-auth.guard.ts
 
@@ -479,19 +481,19 @@ import {
   CanActivate,
   ExecutionContext,
   Injectable,
+  Logger,
+  SetMetadata,
   UnauthorizedException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { createClerkClient } from '@clerk/backend';
+import { verifyToken } from '@clerk/backend';
 
 export const IS_PUBLIC_KEY = 'isPublic';
 export const Public = () => SetMetadata(IS_PUBLIC_KEY, true);
 
 @Injectable()
 export class ClerkAuthGuard implements CanActivate {
-  private clerk = createClerkClient({
-    secretKey: process.env.CLERK_SECRET_KEY,
-  });
+  private readonly logger = new Logger(ClerkAuthGuard.name);
 
   constructor(private reflector: Reflector) {}
 
@@ -503,19 +505,26 @@ export class ClerkAuthGuard implements CanActivate {
     if (isPublic) return true;
 
     const request = context.switchToHttp().getRequest();
-    const token = request.headers.authorization?.replace('Bearer ', '');
+    const token = request.headers.authorization?.replace(/^Bearer\s+/i, '');
 
     if (!token) {
       throw new UnauthorizedException('Missing authorization token');
     }
 
     try {
-      const payload = await this.clerk.verifyToken(token, {
+      const payload = await verifyToken(token, {
+        secretKey: process.env.CLERK_SECRET_KEY,
         jwtKey: process.env.CLERK_JWT_KEY,
       });
-      request.auth = { userId: payload.sub };
+      const sub = payload.sub;
+      if (typeof sub !== 'string' || sub.length === 0) {
+        throw new UnauthorizedException('Invalid token');
+      }
+      request.auth = { userId: sub };
       return true;
-    } catch {
+    } catch (err) {
+      if (err instanceof UnauthorizedException) throw err;
+      this.logger.debug('Clerk JWT verification failed');
       throw new UnauthorizedException('Invalid token');
     }
   }
@@ -2449,18 +2458,37 @@ OPENAI_API_KEY=sk-...
 AI_MODEL=gpt-4o
 
 # ─── App ──────────────────────────────────────────────────
-PORT=8080
+# Local default 3001; Cloud Run / platforms inject PORT (e.g. 8080) — no need to duplicate in secrets if the platform sets it.
+PORT=3001
 NODE_ENV=development
 CORS_ORIGINS=http://localhost:3000
 USE_NEON=false                           # set to "true" in production (Cloud Run)
 ```
 
+### 12.6 Environment validation at bootstrap
+
+Load and validate environment variables when the app starts using **Zod** and Nest **`ConfigModule.forRoot({ validate })`** (e.g. `src/config/env.schema.ts`). This fails fast on misconfiguration instead of failing on first request.
+
+| Rule | Behavior |
+| ---- | -------- |
+| `DATABASE_URL` | Required in **all** environments (Prisma connects at boot). |
+| `NODE_ENV` | Optional; treat unset as `development`. |
+| `PORT` | Optional; must be an integer **1–65535** when set; default **3001** for local dev if omitted. |
+| `CLERK_SECRET_KEY`, `CLERK_JWT_KEY` | Required when **`NODE_ENV=production`**. In **`development`** and **`test`** (Jest e2e), omitting them is allowed so partial local stacks and tests can boot; protected routes still require valid Clerk config to authenticate. |
+
+After validation, read the listen port from **`ConfigService`** (e.g. `getOrThrow('PORT')`) in `main.ts` so runtime matches the validated value.
+
 ---
 
 ## 13. Swagger Configuration
 
+The sample below inlines all HTTP setup in `main.ts`. An equivalent and **recommended** refactor is a **`configureApp(app: INestApplication)`** helper (e.g. `src/configure-app.ts`) invoked from `main.ts` and from e2e tests so Swagger, CORS, helmet, and the global prefix stay **DRY**. Behavior must match this section.
+
+Use **`ConfigService.getOrThrow('PORT')`** after `NestFactory.create` when using validated env (§12.6).
+
 ```typescript
 // src/main.ts
+import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
@@ -2518,7 +2546,8 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);
 
-  await app.listen(process.env.PORT ?? 8080);
+  const port = app.get(ConfigService).getOrThrow<number>('PORT');
+  await app.listen(port);
 }
 bootstrap();
 ```

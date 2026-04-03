@@ -72,13 +72,15 @@ Everything needed before writing a single business feature.
 
 ### Step 1.4 — App Module Shell, Global Prefix & main.ts
 
-**Spec refs:** §1.3 (API versioning), §13 (main.ts with Swagger, helmet, compression, CORS, prefix)
+**Spec refs:** §1.3 (API versioning), §12.5–§12.6 (environment variables & validation), §13 (Swagger, helmet, compression, CORS, prefix)
 
 **Do:**
 
-- Create `src/main.ts` exactly as specified in §13 (Swagger, helmet, compression, CORS, global prefix with exclusions for health + webhook routes, shutdown hooks, pino logger).
-- Create `src/app.module.ts` — imports `PrismaModule`, `LoggerModule` (§10.1), `ThrottlerModule` (§5.1), and applies `CorrelationIdMiddleware`.
-- Register `ClerkAuthGuard` as `APP_GUARD` globally in `AppModule` (will be created in Step 1.6).
+- Implement bootstrap with the **same behavior** as §13 (Swagger, helmet, compression, CORS, global prefix with exclusions for health + webhook routes, shutdown hooks, pino logger). A thin `src/main.ts` plus a shared `src/configure-app.ts` (called from `main` and e2e) is the **preferred** pattern for DRY tests; §13’s inline `main.ts` remains the behavioral reference.
+- Add **`src/config/env.schema.ts`** — Zod schema + `validateEnv` for `ConfigModule.forRoot({ validate })` per §12.6 (`DATABASE_URL` always required; `PORT` 1–65535 default 3001; `CLERK_*` required only when `NODE_ENV=production`; `test`/`development` may omit Clerk for partial local runs).
+- In `src/main.ts`, listen using **`ConfigService.getOrThrow('PORT')`** after `NestFactory.create` so the port matches validated config.
+- Create `src/app.module.ts` — imports `PrismaModule`, `LoggerModule` (§10.1), `ThrottlerModule` (§5.1), `validate` on `ConfigModule`, and applies `CorrelationIdMiddleware`.
+- Register **`ThrottlerGuard`** and **`ClerkAuthGuard`** as **`APP_GUARD`** globally in `AppModule` (global limits require the throttler guard; see §5.1). The Clerk guard file is specified in Step 1.5 — create it here if needed so the module compiles.
 
 **Verify:** `npm run start:dev` boots without errors. `GET http://localhost:3001/` returns 404 (no routes yet) but the server is running.
 
@@ -90,12 +92,12 @@ Everything needed before writing a single business feature.
 
 **Do:**
 
-- Create `src/common/guards/clerk-auth.guard.ts` — ClerkAuthGuard from §3.2 (includes `@Public()` decorator + `IS_PUBLIC_KEY`).
+- Create `src/common/guards/clerk-auth.guard.ts` — ClerkAuthGuard from §3.2 (includes `@Public()` decorator + `IS_PUBLIC_KEY`) if not already added in Step 1.4.
+- Create `src/common/middleware/correlation-id.middleware.ts` — from §10.2 if not already added in Step 1.4.
 - Create `src/common/decorators/current-user.decorator.ts` — from §3.3.
 - Create `src/common/pipes/zod-validation.pipe.ts` — from §6.10.
 - Create `src/common/interceptors/transform.interceptor.ts` — wraps all responses in the `{ success, data, meta, error }` envelope from §5.0.
 - Create `src/common/filters/http-exception.filter.ts` — catches all exceptions, formats them into the envelope, logs 5xx errors (§10.3).
-- Create `src/common/middleware/correlation-id.middleware.ts` — from §10.2.
 
 **Verify:** All files compile. The guard, filter, interceptor, and middleware are registered in `AppModule` / `main.ts`. Server boots.
 
@@ -511,7 +513,7 @@ Each step delivers a fully working vertical slice: controller + service + DTOs +
 | §3 Authentication (Clerk)   | 1.5, 2.1                               |
 | §4 Project Structure        | 1.1                                    |
 | §5.0 Response Envelope      | 1.5                                    |
-| §5.1 Rate Limiting          | 7.1                                    |
+| §5.1 Rate Limiting          | 1.4, 7.1                               |
 | §5.2 Health                 | 1.8                                    |
 | §5.3 Auth/Webhooks          | 2.1                                    |
 | §5.4 Users                  | 2.2                                    |
@@ -530,7 +532,7 @@ Each step delivers a fully working vertical slice: controller + service + DTOs +
 | §9 Caching Strategy         | 1.7                                    |
 | §10 Logging & Observability | 1.4, 1.5                               |
 | §11 Testing Strategy        | 8.1–8.3                                |
-| §12 Docker & Deployment     | 1.2, 9.1                               |
+| §12 Docker & Deployment     | 1.2, 1.4, 9.1                          |
 | §13 Swagger                 | 1.4, 7.2                               |
 | §14 Migration Strategy      | 10 (reference only)                    |
 | Appendix A (Endpoints)      | Cross-reference after Phase 6          |
@@ -546,10 +548,10 @@ Each step delivers a fully working vertical slice: controller + service + DTOs +
 
 ```
 Phase 1: Project Scaffold & Infrastructure
-  [ ] 1.1 — Initialize NestJS Project
+  [x] 1.1 — Initialize NestJS Project
   [x] 1.2 — Docker & Local Dev Environment
   [x] 1.3 — Prisma Setup & Database Schema
-  [ ] 1.4 — App Module Shell, Global Prefix & main.ts
+  [x] 1.4 — App Module Shell, Global Prefix & main.ts
   [ ] 1.5 — Common Infrastructure
   [ ] 1.6 — Shared Schemas & Constants
   [ ] 1.7 — Cache Module
