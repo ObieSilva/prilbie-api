@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
+import { getTodayInTimezone } from '../common/utils/date.utils';
 import { PrismaService } from '../prisma/prisma.service';
 import type { CreateSystemDto } from './dto/create-system.dto';
 import type { ReorderSystemsDto } from './dto/reorder-systems.dto';
@@ -24,7 +25,7 @@ export class SystemsService {
 
   async list(clerkUserId: string) {
     const { id: userId, timezone } = await this.resolveUser(clerkUserId);
-    const today = this.getTodayInTimezone(timezone);
+    const today = getTodayInTimezone(timezone);
 
     const systems = await this.prisma.system.findMany({
       where: { userId, deletedAt: null },
@@ -55,7 +56,7 @@ export class SystemsService {
 
   async getById(clerkUserId: string, systemId: string) {
     const { id: userId, timezone } = await this.resolveUser(clerkUserId);
-    const today = this.getTodayInTimezone(timezone);
+    const today = getTodayInTimezone(timezone);
 
     const system = await this.prisma.system.findFirst({
       where: { id: systemId, userId, deletedAt: null },
@@ -209,11 +210,5 @@ export class SystemsService {
     if (days <= 5)
       return { healthStatus: 'attention', healthLabel: HEALTH_MAP.attention };
     return { healthStatus: 'neglected', healthLabel: HEALTH_MAP.neglected };
-  }
-
-  private getTodayInTimezone(timezone: string): string {
-    return new Intl.DateTimeFormat('en-CA', { timeZone: timezone }).format(
-      new Date(),
-    );
   }
 }

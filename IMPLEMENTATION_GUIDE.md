@@ -322,7 +322,7 @@ Each step delivers a fully working vertical slice: controller + service + DTOs +
 
 ## Phase 5: Computed Data — Momentum & Today
 
-### Step 5.1 — Momentum Module
+### Step 5.1 — Momentum Module - DONE
 
 **Spec refs:** §5.11, §7.1 (streak), §7.2 (points), §7.3 (tiers), §9.3 (caching)
 
@@ -574,7 +574,7 @@ Phase 4: Checkins, Energy & Reflections
   [x] 4.3 — Reflections Module
 
 Phase 5: Computed Data
-  [ ] 5.1 — Momentum Module
+  [x] 5.1 — Momentum Module
   [ ] 5.2 — Today Module
 
 Phase 6: AI Coach

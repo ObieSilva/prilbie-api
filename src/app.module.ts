@@ -19,6 +19,7 @@ import { AreasModule } from './areas/areas.module';
 import { SystemsModule } from './systems/systems.module';
 import { CheckinsModule } from './checkins/checkins.module';
 import { EnergyModule } from './energy/energy.module';
+import { MomentumModule } from './momentum/momentum.module';
 import { ReflectionsModule } from './reflections/reflections.module';
 import { UsersModule } from './users/users.module';
 
@@ -63,6 +64,7 @@ type PinoSerializedReq = {
     AreasModule,
     CheckinsModule,
     EnergyModule,
+    MomentumModule,
     ReflectionsModule,
     SystemsModule,
     UsersModule,
