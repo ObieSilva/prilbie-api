@@ -357,9 +357,9 @@ Each step delivers a fully working vertical slice: controller + service + DTOs +
 
 ---
 
-## Phase 6: AI Coach
+## Phase 6: AI Coach - DONE
 
-### Step 6.1 — AI Coach Module
+### Step 6.1 — AI Coach Module - DONE
 
 **Spec refs:** §5.13, §8.1–§8.6
 
@@ -578,7 +578,7 @@ Phase 5: Computed Data
   [x] 5.2 — Today Module
 
 Phase 6: AI Coach
-  [ ] 6.1 — AI Coach Module
+  [x] 6.1 — AI Coach Module
 
 Phase 7: Rate Limiting & Swagger
   [ ] 7.1 — Rate Limiting

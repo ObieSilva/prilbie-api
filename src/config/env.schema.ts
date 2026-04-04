@@ -2,7 +2,11 @@ import { prettifyError, z } from 'zod';
 
 const nodeEnvSchema = z.enum(['development', 'production', 'test']);
 
-const PRODUCTION_CLERK_KEYS = ['CLERK_SECRET_KEY', 'CLERK_JWT_KEY'] as const;
+const PRODUCTION_REQUIRED_KEYS = [
+  'CLERK_SECRET_KEY',
+  'CLERK_JWT_KEY',
+  'OPENAI_API_KEY',
+] as const;
 
 function parsePortFromEnv(val: unknown): unknown {
   if (typeof val !== 'string' || val.trim() === '') return 3001;
@@ -23,11 +27,13 @@ export const envSchema = z
     CLERK_SECRET_KEY: z.string().optional(),
     CLERK_JWT_KEY: z.string().optional(),
     CLERK_WEBHOOK_SECRET: z.string().optional(),
+    OPENAI_API_KEY: z.string().optional(),
+    AI_MODEL: z.string().optional().default('gpt-4o-mini'),
   })
   .passthrough()
   .superRefine((data, ctx) => {
     if (data.NODE_ENV !== 'production') return;
-    for (const key of PRODUCTION_CLERK_KEYS) {
+    for (const key of PRODUCTION_REQUIRED_KEYS) {
       if (data[key]?.trim()) continue;
       ctx.addIssue({
         code: 'custom',

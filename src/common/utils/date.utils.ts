@@ -26,6 +26,16 @@ export function subtractDays(dateStr: string, n: number): string {
   return addDays(dateStr, -n);
 }
 
+/** Returns whole days between two "YYYY-MM-DD" date strings. */
+export function daysBetween(fromDate: string, toDate: string): number {
+  const msPerDay = 1000 * 60 * 60 * 24;
+  return Math.floor(
+    (new Date(toDate + 'T00:00:00Z').getTime() -
+      new Date(fromDate + 'T00:00:00Z').getTime()) /
+      msPerDay,
+  );
+}
+
 /** Returns the Monday (ISO week start) for the week containing `dateStr`. */
 export function getMonday(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00Z');
