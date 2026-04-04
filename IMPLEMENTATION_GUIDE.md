@@ -262,7 +262,7 @@ Each step delivers a fully working vertical slice: controller + service + DTOs +
 
 ## Phase 4: Checkins, Energy & Reflections
 
-### Step 4.1 — Checkins Module
+### Step 4.1 — Checkins Module - DONE
 
 **Spec refs:** §5.8, §6.5, §7.7 (expansion offers), §9.3 (cache invalidation)
 
@@ -569,7 +569,7 @@ Phase 3: Core CRUD
   [ ] 3.3 — Action Bundles Module
 
 Phase 4: Checkins, Energy & Reflections
-  [ ] 4.1 — Checkins Module
+  [x] 4.1 — Checkins Module
   [ ] 4.2 — Energy Module
   [ ] 4.3 — Reflections Module
 

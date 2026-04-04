@@ -17,6 +17,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { ActionBundlesModule } from './action-bundles/action-bundles.module';
 import { AreasModule } from './areas/areas.module';
 import { SystemsModule } from './systems/systems.module';
+import { CheckinsModule } from './checkins/checkins.module';
 import { UsersModule } from './users/users.module';
 
 /** Argument to nestjs-pino `serializers.req` (pino-http request wrapper). */
@@ -58,6 +59,7 @@ type PinoSerializedReq = {
     HealthModule,
     ActionBundlesModule,
     AreasModule,
+    CheckinsModule,
     SystemsModule,
     UsersModule,
   ],
