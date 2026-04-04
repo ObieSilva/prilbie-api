@@ -1,13 +1,14 @@
+import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';
 
-import { DateStringSchema } from '../../common/schemas/enums';
 import { PaginationSchema } from '../../common/dto/pagination.dto';
+import { DateStringSchema } from '../../common/schemas/enums';
 
-export const ListCheckinsSchema = PaginationSchema.extend({
+const ListCheckinsSchema = PaginationSchema.extend({
   date: DateStringSchema.optional(),
   systemId: z.string().optional(),
   from: DateStringSchema.optional(),
   to: DateStringSchema.optional(),
 });
 
-export type ListCheckinsDto = z.infer<typeof ListCheckinsSchema>;
+export class ListCheckinsDto extends createZodDto(ListCheckinsSchema) {}

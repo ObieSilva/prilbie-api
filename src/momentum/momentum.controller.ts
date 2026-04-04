@@ -1,13 +1,15 @@
 import { Controller, Get, Param, Query } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { SkipThrottle } from '@nestjs/throttler';
 
 import { CurrentUser } from '../common/decorators/current-user.decorator';
-import { PaginationSchema } from '../common/dto/pagination.dto';
-import type { PaginationDto } from '../common/dto/pagination.dto';
+import { PaginationDto } from '../common/dto/pagination.dto';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import { DateStringSchema } from '../common/schemas/enums';
 import { MomentumService } from './momentum.service';
 
+@ApiTags('momentum')
+@ApiBearerAuth('clerk-jwt')
 @Controller('momentum')
 @SkipThrottle({ ai: true })
 export class MomentumController {
@@ -26,7 +28,8 @@ export class MomentumController {
   @Get('history')
   getHistory(
     @CurrentUser() auth: { userId: string },
-    @Query(new ZodValidationPipe(PaginationSchema)) pagination: PaginationDto,
+    @Query(new ZodValidationPipe(PaginationDto.schema))
+    pagination: PaginationDto,
   ) {
     return this.momentumService.getHistory(auth.userId, pagination);
   }

@@ -1,3 +1,4 @@
+import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';
 
 export const PaginationSchema = z.object({
@@ -5,4 +6,4 @@ export const PaginationSchema = z.object({
   pageSize: z.coerce.number().int().min(1).max(200).default(50),
 });
 
-export type PaginationDto = z.infer<typeof PaginationSchema>;
+export class PaginationDto extends createZodDto(PaginationSchema) {}

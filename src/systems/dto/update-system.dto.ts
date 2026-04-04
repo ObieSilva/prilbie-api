@@ -1,8 +1,9 @@
+import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';
 
 import { VALID_ICONS } from '../../common/constants/icons';
 
-export const UpdateSystemSchema = z.object({
+const UpdateSystemSchema = z.object({
   name: z.string().min(1).max(100).trim().optional(),
   icon: z
     .string()
@@ -14,4 +15,4 @@ export const UpdateSystemSchema = z.object({
   sortOrder: z.number().int().min(0).optional(),
 });
 
-export type UpdateSystemDto = z.infer<typeof UpdateSystemSchema>;
+export class UpdateSystemDto extends createZodDto(UpdateSystemSchema) {}

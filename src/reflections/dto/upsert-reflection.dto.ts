@@ -1,7 +1,8 @@
+import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';
 
-export const UpsertReflectionSchema = z.object({
+const UpsertReflectionSchema = z.object({
   text: z.string().min(1).max(2000).trim(),
 });
 
-export type UpsertReflectionDto = z.infer<typeof UpsertReflectionSchema>;
+export class UpsertReflectionDto extends createZodDto(UpsertReflectionSchema) {}

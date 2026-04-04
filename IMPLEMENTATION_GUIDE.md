@@ -406,7 +406,7 @@ Each step delivers a fully working vertical slice: controller + service + DTOs +
 
 ---
 
-### Step 7.2 — Swagger Annotations
+### Step 7.2 — Swagger Annotations - DONE
 
 **Spec refs:** §13
 
@@ -582,7 +582,7 @@ Phase 6: AI Coach
 
 Phase 7: Rate Limiting & Swagger
   [x] 7.1 — Rate Limiting
-  [ ] 7.2 — Swagger Annotations
+  [x] 7.2 — Swagger Annotations
 
 Phase 8: Testing
   [ ] 8.1 — Test Infrastructure

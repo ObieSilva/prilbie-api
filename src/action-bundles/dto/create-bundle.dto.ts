@@ -1,6 +1,5 @@
-import { z } from 'zod';
+import { createZodDto } from 'nestjs-zod';
 
 import { BundleLevelsSchema } from '../../common/schemas/shared';
 
-export const CreateBundleSchema = BundleLevelsSchema;
-export type CreateBundleDto = z.infer<typeof CreateBundleSchema>;
+export class CreateBundleDto extends createZodDto(BundleLevelsSchema) {}

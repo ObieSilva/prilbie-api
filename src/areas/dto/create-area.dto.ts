@@ -1,7 +1,8 @@
+import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';
 
-export const CreateAreaSchema = z.object({
+const CreateAreaSchema = z.object({
   name: z.string().min(1).max(100).trim(),
 });
 
-export type CreateAreaDto = z.infer<typeof CreateAreaSchema>;
+export class CreateAreaDto extends createZodDto(CreateAreaSchema) {}

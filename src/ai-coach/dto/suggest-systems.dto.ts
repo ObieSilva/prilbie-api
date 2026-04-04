@@ -1,7 +1,8 @@
+import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';
 
-export const SuggestSystemsSchema = z.object({
+const SuggestSystemsSchema = z.object({
   goals: z.string().min(1).max(2000),
 });
 
-export type SuggestSystemsDto = z.infer<typeof SuggestSystemsSchema>;
+export class SuggestSystemsDto extends createZodDto(SuggestSystemsSchema) {}

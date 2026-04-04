@@ -10,19 +10,19 @@ import {
   Post,
   UsePipes,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { SkipThrottle, Throttle } from '@nestjs/throttler';
 
 import { RATE_LIMITS } from '../common/constants/rate-limits';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
-import type { CreateSystemDto } from './dto/create-system.dto';
-import { CreateSystemSchema } from './dto/create-system.dto';
-import type { ReorderSystemsDto } from './dto/reorder-systems.dto';
-import { ReorderSystemsSchema } from './dto/reorder-systems.dto';
-import type { UpdateSystemDto } from './dto/update-system.dto';
-import { UpdateSystemSchema } from './dto/update-system.dto';
+import { CreateSystemDto } from './dto/create-system.dto';
+import { ReorderSystemsDto } from './dto/reorder-systems.dto';
+import { UpdateSystemDto } from './dto/update-system.dto';
 import { SystemsService } from './systems.service';
 
+@ApiTags('systems')
+@ApiBearerAuth('clerk-jwt')
 @Controller('systems')
 @SkipThrottle({ ai: true })
 export class SystemsController {
@@ -36,7 +36,7 @@ export class SystemsController {
   @Post()
   @Throttle({ default: RATE_LIMITS.WRITE })
   @HttpCode(HttpStatus.CREATED)
-  @UsePipes(new ZodValidationPipe(CreateSystemSchema))
+  @UsePipes(new ZodValidationPipe(CreateSystemDto.schema))
   create(
     @CurrentUser() auth: { userId: string },
     @Body() dto: CreateSystemDto,
@@ -47,7 +47,7 @@ export class SystemsController {
   @Patch('reorder')
   @Throttle({ default: RATE_LIMITS.WRITE })
   @HttpCode(HttpStatus.OK)
-  @UsePipes(new ZodValidationPipe(ReorderSystemsSchema))
+  @UsePipes(new ZodValidationPipe(ReorderSystemsDto.schema))
   reorder(
     @CurrentUser() auth: { userId: string },
     @Body() dto: ReorderSystemsDto,
@@ -62,7 +62,7 @@ export class SystemsController {
 
   @Patch(':id')
   @Throttle({ default: RATE_LIMITS.WRITE })
-  @UsePipes(new ZodValidationPipe(UpdateSystemSchema))
+  @UsePipes(new ZodValidationPipe(UpdateSystemDto.schema))
   update(
     @CurrentUser() auth: { userId: string },
     @Param('id') id: string,

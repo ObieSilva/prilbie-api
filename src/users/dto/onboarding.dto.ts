@@ -1,10 +1,11 @@
+import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';
 
 import { VALID_ICONS } from '../../common/constants/icons';
 import { TimezoneSchema } from '../../common/schemas/enums';
 import { BundleLevelsSchema } from '../../common/schemas/shared';
 
-export const OnboardingSchema = z.object({
+const OnboardingSchema = z.object({
   userName: z.string().min(1).max(100).trim(),
   timezone: TimezoneSchema,
   system: z.object({
@@ -19,4 +20,4 @@ export const OnboardingSchema = z.object({
   bundle: BundleLevelsSchema,
 });
 
-export type OnboardingDto = z.infer<typeof OnboardingSchema>;
+export class OnboardingDto extends createZodDto(OnboardingSchema) {}

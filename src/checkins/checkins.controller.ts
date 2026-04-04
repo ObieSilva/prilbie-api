@@ -10,17 +10,18 @@ import {
   Query,
   UsePipes,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { SkipThrottle, Throttle } from '@nestjs/throttler';
 
 import { RATE_LIMITS } from '../common/constants/rate-limits';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
-import type { CreateCheckinDto } from './dto/create-checkin.dto';
-import { CreateCheckinSchema } from './dto/create-checkin.dto';
-import type { ListCheckinsDto } from './dto/list-checkins.dto';
-import { ListCheckinsSchema } from './dto/list-checkins.dto';
+import { CreateCheckinDto } from './dto/create-checkin.dto';
+import { ListCheckinsDto } from './dto/list-checkins.dto';
 import { CheckinsService } from './checkins.service';
 
+@ApiTags('checkins')
+@ApiBearerAuth('clerk-jwt')
 @Controller('checkins')
 @SkipThrottle({ ai: true })
 export class CheckinsController {
@@ -29,7 +30,8 @@ export class CheckinsController {
   @Get()
   list(
     @CurrentUser() auth: { userId: string },
-    @Query(new ZodValidationPipe(ListCheckinsSchema)) filters: ListCheckinsDto,
+    @Query(new ZodValidationPipe(ListCheckinsDto.schema))
+    filters: ListCheckinsDto,
   ) {
     return this.checkinsService.list(auth.userId, filters);
   }
@@ -37,7 +39,7 @@ export class CheckinsController {
   @Post()
   @Throttle({ default: RATE_LIMITS.WRITE })
   @HttpCode(HttpStatus.CREATED)
-  @UsePipes(new ZodValidationPipe(CreateCheckinSchema))
+  @UsePipes(new ZodValidationPipe(CreateCheckinDto.schema))
   create(
     @CurrentUser() auth: { userId: string },
     @Body() dto: CreateCheckinDto,

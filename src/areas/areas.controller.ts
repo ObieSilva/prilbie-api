@@ -10,17 +10,18 @@ import {
   Post,
   UsePipes,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { SkipThrottle, Throttle } from '@nestjs/throttler';
 
 import { RATE_LIMITS } from '../common/constants/rate-limits';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
-import type { CreateAreaDto } from './dto/create-area.dto';
-import { CreateAreaSchema } from './dto/create-area.dto';
-import type { UpdateAreaDto } from './dto/update-area.dto';
-import { UpdateAreaSchema } from './dto/update-area.dto';
+import { CreateAreaDto } from './dto/create-area.dto';
+import { UpdateAreaDto } from './dto/update-area.dto';
 import { AreasService } from './areas.service';
 
+@ApiTags('areas')
+@ApiBearerAuth('clerk-jwt')
 @Controller()
 @SkipThrottle({ ai: true })
 export class AreasController {
@@ -37,7 +38,7 @@ export class AreasController {
   @Post('systems/:systemId/areas')
   @Throttle({ default: RATE_LIMITS.WRITE })
   @HttpCode(HttpStatus.CREATED)
-  @UsePipes(new ZodValidationPipe(CreateAreaSchema))
+  @UsePipes(new ZodValidationPipe(CreateAreaDto.schema))
   create(
     @CurrentUser() auth: { userId: string },
     @Param('systemId') systemId: string,
@@ -48,7 +49,7 @@ export class AreasController {
 
   @Patch('areas/:id')
   @Throttle({ default: RATE_LIMITS.WRITE })
-  @UsePipes(new ZodValidationPipe(UpdateAreaSchema))
+  @UsePipes(new ZodValidationPipe(UpdateAreaDto.schema))
   update(
     @CurrentUser() auth: { userId: string },
     @Param('id') id: string,

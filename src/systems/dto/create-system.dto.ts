@@ -1,8 +1,9 @@
+import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';
 
 import { VALID_ICONS } from '../../common/constants/icons';
 
-export const CreateSystemSchema = z.object({
+const CreateSystemSchema = z.object({
   name: z.string().min(1).max(100).trim(),
   icon: z
     .string()
@@ -12,4 +13,4 @@ export const CreateSystemSchema = z.object({
   replacedHabit: z.string().max(200).trim().optional(),
 });
 
-export type CreateSystemDto = z.infer<typeof CreateSystemSchema>;
+export class CreateSystemDto extends createZodDto(CreateSystemSchema) {}

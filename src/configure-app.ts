@@ -1,8 +1,9 @@
 import { INestApplication } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { Logger } from 'nestjs-pino';
-import helmet from 'helmet';
 import compression from 'compression';
+import helmet from 'helmet';
+import { cleanupOpenApiDoc } from 'nestjs-zod';
+import { Logger } from 'nestjs-pino';
 
 export function configureApp(app: INestApplication): void {
   app.useLogger(app.get(Logger));
@@ -46,5 +47,6 @@ export function configureApp(app: INestApplication): void {
     .build();
 
   const document = SwaggerModule.createDocument(app, swaggerConfig);
+  cleanupOpenApiDoc(document);
   SwaggerModule.setup('api/docs', app, document);
 }
