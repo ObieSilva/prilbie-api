@@ -9,7 +9,9 @@ import {
   Post,
   UsePipes,
 } from '@nestjs/common';
+import { SkipThrottle, Throttle } from '@nestjs/throttler';
 
+import { RATE_LIMITS } from '../common/constants/rate-limits';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import type { OnboardingDto } from './dto/onboarding.dto';
@@ -19,6 +21,7 @@ import { UpdateUserSchema } from './dto/update-user.dto';
 import { UsersService } from './users.service';
 
 @Controller('users/me')
+@SkipThrottle({ ai: true })
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
@@ -28,6 +31,7 @@ export class UsersController {
   }
 
   @Patch()
+  @Throttle({ default: RATE_LIMITS.WRITE })
   @UsePipes(new ZodValidationPipe(UpdateUserSchema))
   updateProfile(
     @CurrentUser() auth: { userId: string },
@@ -37,6 +41,7 @@ export class UsersController {
   }
 
   @Post('onboard')
+  @Throttle({ default: RATE_LIMITS.WRITE })
   @HttpCode(HttpStatus.CREATED)
   @UsePipes(new ZodValidationPipe(OnboardingSchema))
   onboard(@CurrentUser() auth: { userId: string }, @Body() dto: OnboardingDto) {
@@ -44,6 +49,7 @@ export class UsersController {
   }
 
   @Delete()
+  @Throttle({ default: RATE_LIMITS.WRITE })
   @HttpCode(HttpStatus.OK)
   softDelete(@CurrentUser() auth: { userId: string }) {
     return this.usersService.softDelete(auth.userId);

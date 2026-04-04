@@ -10,7 +10,9 @@ import {
   Post,
   UsePipes,
 } from '@nestjs/common';
+import { SkipThrottle, Throttle } from '@nestjs/throttler';
 
+import { RATE_LIMITS } from '../common/constants/rate-limits';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import type { CreateBundleDto } from './dto/create-bundle.dto';
@@ -20,6 +22,7 @@ import { UpdateBundleSchema } from './dto/update-bundle.dto';
 import { ActionBundlesService } from './action-bundles.service';
 
 @Controller()
+@SkipThrottle({ ai: true })
 export class ActionBundlesController {
   constructor(private readonly actionBundlesService: ActionBundlesService) {}
 
@@ -32,6 +35,7 @@ export class ActionBundlesController {
   }
 
   @Post('areas/:areaId/bundles')
+  @Throttle({ default: RATE_LIMITS.WRITE })
   @HttpCode(HttpStatus.CREATED)
   @UsePipes(new ZodValidationPipe(CreateBundleSchema))
   create(
@@ -43,6 +47,7 @@ export class ActionBundlesController {
   }
 
   @Patch('bundles/:id')
+  @Throttle({ default: RATE_LIMITS.WRITE })
   @UsePipes(new ZodValidationPipe(UpdateBundleSchema))
   update(
     @CurrentUser() auth: { userId: string },
@@ -53,6 +58,7 @@ export class ActionBundlesController {
   }
 
   @Delete('bundles/:id')
+  @Throttle({ default: RATE_LIMITS.WRITE })
   @HttpCode(HttpStatus.OK)
   softDelete(@CurrentUser() auth: { userId: string }, @Param('id') id: string) {
     return this.actionBundlesService.softDelete(auth.userId, id);

@@ -8,14 +8,17 @@ import {
 import type { RawBodyRequest } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ApiTags } from '@nestjs/swagger';
+import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import * as express from 'express';
 import { Webhook } from 'svix';
+import { RATE_LIMITS } from '../common/constants/rate-limits';
 import { Public } from '../common/guards/clerk-auth.guard';
 import { PrismaService } from '../prisma/prisma.service';
 
 @ApiTags('auth')
 @Controller('webhooks/clerk')
 @Public()
+@SkipThrottle({ ai: true })
 export class AuthController {
   private readonly logger = new Logger(AuthController.name);
 
@@ -25,6 +28,7 @@ export class AuthController {
   ) {}
 
   @Post()
+  @Throttle({ default: RATE_LIMITS.WRITE })
   async handleClerkWebhook(@Req() req: RawBodyRequest<express.Request>) {
     const payload = req.rawBody;
     if (!payload) {

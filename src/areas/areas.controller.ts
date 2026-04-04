@@ -10,7 +10,9 @@ import {
   Post,
   UsePipes,
 } from '@nestjs/common';
+import { SkipThrottle, Throttle } from '@nestjs/throttler';
 
+import { RATE_LIMITS } from '../common/constants/rate-limits';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import type { CreateAreaDto } from './dto/create-area.dto';
@@ -20,6 +22,7 @@ import { UpdateAreaSchema } from './dto/update-area.dto';
 import { AreasService } from './areas.service';
 
 @Controller()
+@SkipThrottle({ ai: true })
 export class AreasController {
   constructor(private readonly areasService: AreasService) {}
 
@@ -32,6 +35,7 @@ export class AreasController {
   }
 
   @Post('systems/:systemId/areas')
+  @Throttle({ default: RATE_LIMITS.WRITE })
   @HttpCode(HttpStatus.CREATED)
   @UsePipes(new ZodValidationPipe(CreateAreaSchema))
   create(
@@ -43,6 +47,7 @@ export class AreasController {
   }
 
   @Patch('areas/:id')
+  @Throttle({ default: RATE_LIMITS.WRITE })
   @UsePipes(new ZodValidationPipe(UpdateAreaSchema))
   update(
     @CurrentUser() auth: { userId: string },
@@ -53,6 +58,7 @@ export class AreasController {
   }
 
   @Delete('areas/:id')
+  @Throttle({ default: RATE_LIMITS.WRITE })
   @HttpCode(HttpStatus.OK)
   softDelete(@CurrentUser() auth: { userId: string }, @Param('id') id: string) {
     return this.areasService.softDelete(auth.userId, id);

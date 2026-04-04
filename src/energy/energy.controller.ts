@@ -7,7 +7,9 @@ import {
   Param,
   Put,
 } from '@nestjs/common';
+import { SkipThrottle, Throttle } from '@nestjs/throttler';
 
+import { RATE_LIMITS } from '../common/constants/rate-limits';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import { DateStringSchema } from '../common/schemas/enums';
@@ -18,6 +20,7 @@ import { SetSystemEnergySchema } from './dto/set-system-energy.dto';
 import { EnergyService } from './energy.service';
 
 @Controller('energy')
+@SkipThrottle({ ai: true })
 export class EnergyController {
   constructor(private readonly energyService: EnergyService) {}
 
@@ -30,6 +33,7 @@ export class EnergyController {
   }
 
   @Put(':date')
+  @Throttle({ default: RATE_LIMITS.WRITE })
   @HttpCode(HttpStatus.OK)
   setGlobal(
     @CurrentUser() auth: { userId: string },
@@ -40,6 +44,7 @@ export class EnergyController {
   }
 
   @Put(':date/systems/:systemId')
+  @Throttle({ default: RATE_LIMITS.WRITE })
   @HttpCode(HttpStatus.OK)
   setSystemOverride(
     @CurrentUser() auth: { userId: string },

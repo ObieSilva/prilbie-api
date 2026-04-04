@@ -10,7 +10,9 @@ import {
   Query,
   UsePipes,
 } from '@nestjs/common';
+import { SkipThrottle, Throttle } from '@nestjs/throttler';
 
+import { RATE_LIMITS } from '../common/constants/rate-limits';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import type { CreateCheckinDto } from './dto/create-checkin.dto';
@@ -20,6 +22,7 @@ import { ListCheckinsSchema } from './dto/list-checkins.dto';
 import { CheckinsService } from './checkins.service';
 
 @Controller('checkins')
+@SkipThrottle({ ai: true })
 export class CheckinsController {
   constructor(private readonly checkinsService: CheckinsService) {}
 
@@ -32,6 +35,7 @@ export class CheckinsController {
   }
 
   @Post()
+  @Throttle({ default: RATE_LIMITS.WRITE })
   @HttpCode(HttpStatus.CREATED)
   @UsePipes(new ZodValidationPipe(CreateCheckinSchema))
   create(
@@ -42,6 +46,7 @@ export class CheckinsController {
   }
 
   @Delete(':id')
+  @Throttle({ default: RATE_LIMITS.WRITE })
   @HttpCode(HttpStatus.OK)
   delete(@CurrentUser() auth: { userId: string }, @Param('id') id: string) {
     return this.checkinsService.delete(auth.userId, id);

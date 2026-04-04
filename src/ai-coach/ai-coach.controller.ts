@@ -11,8 +11,10 @@ import {
   Sse,
   UsePipes,
 } from '@nestjs/common';
+import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import type { Observable } from 'rxjs';
 
+import { RATE_LIMITS } from '../common/constants/rate-limits';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import { AiCoachService } from './ai-coach.service';
@@ -32,11 +34,14 @@ export class AiCoachController {
   constructor(private readonly aiCoachService: AiCoachService) {}
 
   @Get('conversations')
+  @SkipThrottle({ ai: true })
   listConversations(@CurrentUser() auth: { userId: string }) {
     return this.aiCoachService.listConversations(auth.userId);
   }
 
   @Post('conversations')
+  @Throttle({ default: RATE_LIMITS.WRITE })
+  @SkipThrottle({ ai: true })
   @HttpCode(HttpStatus.CREATED)
   @UsePipes(new ZodValidationPipe(CreateConversationSchema))
   createConversation(
@@ -47,6 +52,7 @@ export class AiCoachController {
   }
 
   @Get('conversations/:id')
+  @SkipThrottle({ ai: true })
   getConversation(
     @CurrentUser() auth: { userId: string },
     @Param('id') id: string,
@@ -55,6 +61,7 @@ export class AiCoachController {
   }
 
   @Post('conversations/:id/messages')
+  @Throttle({ default: RATE_LIMITS.WRITE })
   sendMessage(
     @CurrentUser() auth: { userId: string },
     @Param('id') id: string,
@@ -64,6 +71,7 @@ export class AiCoachController {
   }
 
   @Sse('conversations/:id/stream')
+  @SkipThrottle({ ai: true })
   streamResponse(
     @CurrentUser() auth: { userId: string },
     @Param('id') id: string,
@@ -73,6 +81,8 @@ export class AiCoachController {
   }
 
   @Delete('conversations/:id')
+  @Throttle({ default: RATE_LIMITS.WRITE })
+  @SkipThrottle({ ai: true })
   @HttpCode(HttpStatus.OK)
   deleteConversation(
     @CurrentUser() auth: { userId: string },
@@ -82,6 +92,7 @@ export class AiCoachController {
   }
 
   @Post('suggest/systems')
+  @Throttle({ default: RATE_LIMITS.WRITE, ai: RATE_LIMITS.AI_SUGGEST })
   suggestSystems(
     @CurrentUser() auth: { userId: string },
     @Body(new ZodValidationPipe(SuggestSystemsSchema)) dto: SuggestSystemsDto,
@@ -90,6 +101,7 @@ export class AiCoachController {
   }
 
   @Post('suggest/actions')
+  @Throttle({ default: RATE_LIMITS.WRITE, ai: RATE_LIMITS.AI_SUGGEST })
   suggestActions(
     @CurrentUser() auth: { userId: string },
     @Body(new ZodValidationPipe(SuggestActionsSchema)) dto: SuggestActionsDto,
@@ -98,6 +110,8 @@ export class AiCoachController {
   }
 
   @Post('apply-suggestion')
+  @Throttle({ default: RATE_LIMITS.WRITE })
+  @SkipThrottle({ ai: true })
   @UsePipes(new ZodValidationPipe(ApplySuggestionSchema))
   applySuggestion(
     @CurrentUser() auth: { userId: string },

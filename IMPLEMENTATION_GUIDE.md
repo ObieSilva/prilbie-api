@@ -389,7 +389,7 @@ Each step delivers a fully working vertical slice: controller + service + DTOs +
 
 ## Phase 7: Rate Limiting & Swagger Polish
 
-### Step 7.1 — Rate Limiting
+### Step 7.1 — Rate Limiting - DONE
 
 **Spec refs:** §5.1
 
@@ -581,7 +581,7 @@ Phase 6: AI Coach
   [x] 6.1 — AI Coach Module
 
 Phase 7: Rate Limiting & Swagger
-  [ ] 7.1 — Rate Limiting
+  [x] 7.1 — Rate Limiting
   [ ] 7.2 — Swagger Annotations
 
 Phase 8: Testing

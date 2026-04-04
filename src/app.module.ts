@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
+import { RATE_LIMITS } from './common/constants/rate-limits';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { validateEnv } from './config/env.schema';
 import { rootEnvFilePath } from './config/root-env-path';
@@ -57,7 +58,18 @@ type PinoSerializedReq = {
         },
       },
     }),
-    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
+    ThrottlerModule.forRoot([
+      {
+        name: 'default',
+        ttl: RATE_LIMITS.GLOBAL.ttl,
+        limit: RATE_LIMITS.GLOBAL.limit,
+      },
+      {
+        name: 'ai',
+        ttl: RATE_LIMITS.AI_CHAT.ttl,
+        limit: RATE_LIMITS.AI_CHAT.limit,
+      },
+    ]),
     PrismaModule,
     CacheModule,
     AuthModule,

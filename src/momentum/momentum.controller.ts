@@ -1,4 +1,5 @@
 import { Controller, Get, Param, Query } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { PaginationSchema } from '../common/dto/pagination.dto';
@@ -8,6 +9,7 @@ import { DateStringSchema } from '../common/schemas/enums';
 import { MomentumService } from './momentum.service';
 
 @Controller('momentum')
+@SkipThrottle({ ai: true })
 export class MomentumController {
   constructor(private readonly momentumService: MomentumService) {}
 
