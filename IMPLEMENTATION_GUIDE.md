@@ -320,7 +320,7 @@ Each step delivers a fully working vertical slice: controller + service + DTOs +
 
 ---
 
-## Phase 5: Computed Data — Momentum & Today
+## Phase 5: Computed Data — Momentum & Today - DONE
 
 ### Step 5.1 — Momentum Module - DONE
 
@@ -342,7 +342,7 @@ Each step delivers a fully working vertical slice: controller + service + DTOs +
 
 ---
 
-### Step 5.2 — Today Module
+### Step 5.2 — Today Module - DONE
 
 **Spec refs:** §5.12
 
