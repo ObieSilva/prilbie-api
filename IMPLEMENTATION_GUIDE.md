@@ -193,7 +193,7 @@ Everything needed before writing a single business feature.
 
 ---
 
-## Phase 3: Core CRUD — Systems, Areas, Bundles
+## Phase 3: Core CRUD — Systems, Areas, Bundles - DONE
 
 Each step delivers a fully working vertical slice: controller + service + DTOs + Zod validation.
 
