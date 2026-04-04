@@ -575,7 +575,7 @@ Phase 4: Checkins, Energy & Reflections
 
 Phase 5: Computed Data
   [x] 5.1 — Momentum Module
-  [ ] 5.2 — Today Module
+  [x] 5.2 — Today Module
 
 Phase 6: AI Coach
   [ ] 6.1 — AI Coach Module
