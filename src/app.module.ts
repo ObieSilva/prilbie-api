@@ -21,6 +21,7 @@ import { CheckinsModule } from './checkins/checkins.module';
 import { EnergyModule } from './energy/energy.module';
 import { MomentumModule } from './momentum/momentum.module';
 import { ReflectionsModule } from './reflections/reflections.module';
+import { TodayModule } from './today/today.module';
 import { UsersModule } from './users/users.module';
 
 /** Argument to nestjs-pino `serializers.req` (pino-http request wrapper). */
@@ -67,6 +68,7 @@ type PinoSerializedReq = {
     MomentumModule,
     ReflectionsModule,
     SystemsModule,
+    TodayModule,
     UsersModule,
   ],
   providers: [

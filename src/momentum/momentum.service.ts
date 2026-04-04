@@ -19,6 +19,10 @@ const EFFORT_RANK: Record<EffortLevel, number> = {
   stretch: 2,
 };
 
+const RANK_TO_LEVEL = Object.fromEntries(
+  Object.entries(EFFORT_RANK).map(([level, rank]) => [rank, level]),
+) as Record<number, EffortLevel>;
+
 const OVERVIEW_TTL = 600; // 10 min
 const STREAK_TTL = 86_400; // 24 h
 const WEEKLY_MOMENTUM_TTL = 3_600; // 1 h
@@ -77,7 +81,7 @@ export class MomentumService {
       },
       select: { id: true, name: true, icon: true },
     });
-    const systemMap = new Map(systems.map((s) => [s.id, s]));
+    const systemMap = new Map(systems.map((system) => [system.id, system]));
 
     const result = this.buildOverview(
       streak,
@@ -97,10 +101,9 @@ export class MomentumService {
     const { id: userId, timezone } = await this.resolveUser(clerkUserId);
     const today = getTodayInTimezone(timezone);
 
-    const dates: string[] = [];
-    for (let i = 6; i >= 0; i--) {
-      dates.push(subtractDays(today, i));
-    }
+    const dates = Array.from({ length: 7 }, (_, day) =>
+      subtractDays(today, 6 - day),
+    );
 
     const checkins = await this.prisma.checkin.findMany({
       where: {
@@ -110,25 +113,25 @@ export class MomentumService {
       select: { date: true, energyLevel: true },
     });
 
-    const byDate = new Map<string, { count: number; maxRank: number }>();
-    for (const c of checkins) {
-      const entry = byDate.get(c.date) ?? { count: 0, maxRank: -1 };
+    const checkinsByDate = new Map<
+      string,
+      { count: number; maxRank: number }
+    >();
+    for (const checkin of checkins) {
+      const entry = checkinsByDate.get(checkin.date) ?? {
+        count: 0,
+        maxRank: -1,
+      };
       entry.count++;
-      entry.maxRank = Math.max(entry.maxRank, EFFORT_RANK[c.energyLevel]);
-      byDate.set(c.date, entry);
+      entry.maxRank = Math.max(entry.maxRank, EFFORT_RANK[checkin.energyLevel]);
+      checkinsByDate.set(checkin.date, entry);
     }
 
-    const rankToLevel: Record<number, EffortLevel> = {
-      0: 'baseline',
-      1: 'normal',
-      2: 'stretch',
-    };
-
     return dates.map((date) => {
-      const entry = byDate.get(date);
+      const entry = checkinsByDate.get(date);
       return {
         date,
-        maxLevel: entry ? rankToLevel[entry.maxRank] : null,
+        maxLevel: entry ? RANK_TO_LEVEL[entry.maxRank] : null,
         checkinCount: entry?.count ?? 0,
       };
     });
@@ -153,10 +156,9 @@ export class MomentumService {
   async getWeekDetail(clerkUserId: string, weekStart: string) {
     const { id: userId } = await this.resolveUser(clerkUserId);
 
-    const dates: string[] = [];
-    for (let i = 0; i < 7; i++) {
-      dates.push(addDays(weekStart, i));
-    }
+    const dates = Array.from({ length: 7 }, (_, day) =>
+      addDays(weekStart, day),
+    );
 
     const checkins = await this.prisma.checkin.findMany({
       where: {
@@ -166,18 +168,24 @@ export class MomentumService {
       select: { date: true, energyLevel: true },
     });
 
-    const byDate = new Map<string, { momentum: number; count: number }>();
-    for (const c of checkins) {
-      const entry = byDate.get(c.date) ?? { momentum: 0, count: 0 };
-      entry.momentum += MOMENTUM_POINTS[c.energyLevel];
+    const momentumByDate = new Map<
+      string,
+      { momentum: number; count: number }
+    >();
+    for (const checkin of checkins) {
+      const entry = momentumByDate.get(checkin.date) ?? {
+        momentum: 0,
+        count: 0,
+      };
+      entry.momentum += MOMENTUM_POINTS[checkin.energyLevel];
       entry.count++;
-      byDate.set(c.date, entry);
+      momentumByDate.set(checkin.date, entry);
     }
 
     return dates.map((date) => ({
       date,
-      momentum: byDate.get(date)?.momentum ?? 0,
-      checkinCount: byDate.get(date)?.count ?? 0,
+      momentum: momentumByDate.get(date)?.momentum ?? 0,
+      checkinCount: momentumByDate.get(date)?.count ?? 0,
     }));
   }
 
@@ -222,32 +230,32 @@ export class MomentumService {
       }
     >();
 
-    for (const c of checkins) {
-      const points = MOMENTUM_POINTS[c.energyLevel];
+    for (const checkin of checkins) {
+      const points = MOMENTUM_POINTS[checkin.energyLevel];
 
-      if (!systemMap.has(c.systemId)) {
-        systemMap.set(c.systemId, {
-          systemId: c.systemId,
-          systemName: c.system.name,
-          systemIcon: c.system.icon,
+      if (!systemMap.has(checkin.systemId)) {
+        systemMap.set(checkin.systemId, {
+          systemId: checkin.systemId,
+          systemName: checkin.system.name,
+          systemIcon: checkin.system.icon,
           momentum: 0,
           checkins: [],
         });
       }
 
-      const entry = systemMap.get(c.systemId)!;
+      const entry = systemMap.get(checkin.systemId)!;
       entry.momentum += points;
       entry.checkins.push({
-        id: c.id,
-        actionTitle: c.action.title,
-        energyLevel: c.energyLevel,
+        id: checkin.id,
+        actionTitle: checkin.action.title,
+        energyLevel: checkin.energyLevel,
         points,
-        note: c.note,
+        note: checkin.note,
       });
     }
 
     const totalMomentum = [...systemMap.values()].reduce(
-      (sum, s) => sum + s.momentum,
+      (sum, system) => sum + system.momentum,
       0,
     );
 
@@ -259,41 +267,38 @@ export class MomentumService {
     };
   }
 
-  private async calculateStreak(
-    userId: string,
-    timezone: string,
-  ): Promise<number> {
+  async calculateStreak(userId: string, timezone: string): Promise<number> {
     const cached = await this.cache.get<number>(`streak:${userId}`);
     if (cached !== null) return cached;
 
     const today = getTodayInTimezone(timezone);
 
-    const dates = await this.prisma.checkin.findMany({
-      where: { system: { userId, deletedAt: null } },
-      select: { date: true },
-      distinct: ['date'],
-      orderBy: { date: 'desc' },
-    });
+    const checkinDates = new Set(
+      (
+        await this.prisma.checkin.findMany({
+          where: { system: { userId, deletedAt: null } },
+          select: { date: true },
+          distinct: ['date'],
+          orderBy: { date: 'desc' },
+        })
+      ).map((row) => row.date),
+    );
 
-    const dateSet = new Set(dates.map((d) => d.date));
-
+    const startOffset = checkinDates.has(today) ? 0 : 1;
     let streak = 0;
-    for (let i = 0; ; i++) {
-      const checkDate = subtractDays(today, i);
-      if (dateSet.has(checkDate)) {
-        streak++;
-      } else if (i === 0) {
-        continue; // today may not have checkins yet
-      } else {
-        break;
-      }
+    for (
+      let daysBack = startOffset;
+      checkinDates.has(subtractDays(today, daysBack));
+      daysBack++
+    ) {
+      streak++;
     }
 
     await this.cache.set(`streak:${userId}`, streak, STREAK_TTL);
     return streak;
   }
 
-  private async calculateWeeklyMomentum(
+  async calculateWeeklyMomentum(
     userId: string,
     mondayOfWeek: string,
   ): Promise<number> {
@@ -309,7 +314,7 @@ export class MomentumService {
     });
 
     const total = checkins.reduce(
-      (sum, c) => sum + MOMENTUM_POINTS[c.energyLevel],
+      (sum, checkin) => sum + MOMENTUM_POINTS[checkin.energyLevel],
       0,
     );
 
@@ -332,16 +337,17 @@ export class MomentumService {
       orderBy: { date: 'desc' },
     });
 
-    const weekMap = new Map<string, number>();
-    for (const c of checkins) {
-      const monday = getMonday(c.date);
-      weekMap.set(
+    const momentumByWeek = new Map<string, number>();
+    for (const checkin of checkins) {
+      const monday = getMonday(checkin.date);
+      momentumByWeek.set(
         monday,
-        (weekMap.get(monday) ?? 0) + MOMENTUM_POINTS[c.energyLevel],
+        (momentumByWeek.get(monday) ?? 0) +
+          MOMENTUM_POINTS[checkin.energyLevel],
       );
     }
 
-    return [...weekMap.entries()]
+    return [...momentumByWeek.entries()]
       .sort(([a], [b]) => b.localeCompare(a)) // newest first
       .map(([weekStart, totalMomentum]) => ({
         weekStart,
@@ -376,15 +382,18 @@ export class MomentumService {
       countsByLevel[row.energyLevel] = row._count;
     }
 
-    const totalCheckins =
-      countsByLevel.baseline + countsByLevel.normal + countsByLevel.stretch;
-    const totalMomentum =
-      countsByLevel.baseline * MOMENTUM_POINTS.baseline +
-      countsByLevel.normal * MOMENTUM_POINTS.normal +
-      countsByLevel.stretch * MOMENTUM_POINTS.stretch;
+    const totalCheckins = Object.values(countsByLevel).reduce(
+      (sum, count) => sum + count,
+      0,
+    );
+    const totalMomentum = Object.entries(countsByLevel).reduce(
+      (sum, [level, count]) =>
+        sum + count * MOMENTUM_POINTS[level as EffortLevel],
+      0,
+    );
 
     const bestWeekMomentum = weeklyGroups.reduce(
-      (max, w) => Math.max(max, w.totalMomentum),
+      (max, week) => Math.max(max, week.totalMomentum),
       0,
     );
 
@@ -411,11 +420,11 @@ export class MomentumService {
     const perSystemStats = [...perSystemMap.entries()]
       .filter(([id]) => systemMap.has(id))
       .map(([id, counts]) => {
-        const sys = systemMap.get(id)!;
+        const system = systemMap.get(id)!;
         return {
           systemId: id,
-          systemName: sys.name,
-          systemIcon: sys.icon,
+          systemName: system.name,
+          systemIcon: system.icon,
           ...counts,
         };
       });
@@ -435,26 +444,19 @@ export class MomentumService {
     };
   }
 
-  private resolveTier(weeklyMomentum: number) {
-    type Tier = (typeof MOMENTUM_TIERS)[number];
-    let momentumTier: Tier = MOMENTUM_TIERS[0];
-    let nextTier: Tier | null = null;
+  resolveTier(weeklyMomentum: number) {
+    const matchedIndex = MOMENTUM_TIERS.reduce(
+      (lastMatch, tier, index) =>
+        weeklyMomentum >= tier.threshold ? index : lastMatch,
+      0,
+    );
 
-    for (let i = 0; i < MOMENTUM_TIERS.length; i++) {
-      if (weeklyMomentum >= MOMENTUM_TIERS[i].threshold) {
-        momentumTier = MOMENTUM_TIERS[i];
-        nextTier = MOMENTUM_TIERS[i + 1] ?? null;
-      }
-    }
+    const currentTier = MOMENTUM_TIERS[matchedIndex];
+    const nextTier = MOMENTUM_TIERS[matchedIndex + 1] ?? null;
 
     return {
-      momentumTier: {
-        label: momentumTier.label,
-        threshold: momentumTier.threshold,
-      },
-      nextTier: nextTier
-        ? { label: nextTier.label, threshold: nextTier.threshold }
-        : null,
+      momentumTier: { ...currentTier },
+      nextTier: nextTier ? { ...nextTier } : null,
     };
   }
 

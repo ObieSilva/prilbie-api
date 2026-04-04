@@ -5,19 +5,11 @@ import {
 } from '@nestjs/common';
 
 import { getTodayInTimezone } from '../common/utils/date.utils';
+import { computeHealth } from '../common/utils/system-health.utils';
 import { PrismaService } from '../prisma/prisma.service';
 import type { CreateSystemDto } from './dto/create-system.dto';
 import type { ReorderSystemsDto } from './dto/reorder-systems.dto';
 import type { UpdateSystemDto } from './dto/update-system.dto';
-
-type HealthStatus = 'maintained' | 'healthy' | 'attention' | 'neglected';
-
-const HEALTH_MAP: Record<HealthStatus, string> = {
-  maintained: 'Maintained',
-  healthy: 'Healthy',
-  attention: 'Needs attention',
-  neglected: 'Neglected',
-};
 
 @Injectable()
 export class SystemsService {
@@ -50,7 +42,7 @@ export class SystemsService {
       ...system,
       areaCount: areas.length,
       bundleCount: areas.reduce((sum, a) => sum + a._count.bundles, 0),
-      ...this.computeHealth(checkins[0]?.date, today),
+      ...computeHealth(checkins[0]?.date, today),
     }));
   }
 
@@ -97,7 +89,7 @@ export class SystemsService {
     const { checkins, ...rest } = system;
     return {
       ...rest,
-      ...this.computeHealth(checkins[0]?.date, today),
+      ...computeHealth(checkins[0]?.date, today),
     };
   }
 
@@ -186,29 +178,5 @@ export class SystemsService {
       throw new NotFoundException('System not found');
     }
     return system;
-  }
-
-  private computeHealth(
-    lastCheckinDate: string | undefined,
-    today: string,
-  ): { healthStatus: HealthStatus; healthLabel: string } {
-    if (!lastCheckinDate) {
-      return { healthStatus: 'healthy', healthLabel: HEALTH_MAP.healthy };
-    }
-
-    const diffMs =
-      new Date(today).getTime() - new Date(lastCheckinDate).getTime();
-    const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-    if (days <= 0)
-      return {
-        healthStatus: 'maintained',
-        healthLabel: HEALTH_MAP.maintained,
-      };
-    if (days <= 2)
-      return { healthStatus: 'healthy', healthLabel: HEALTH_MAP.healthy };
-    if (days <= 5)
-      return { healthStatus: 'attention', healthLabel: HEALTH_MAP.attention };
-    return { healthStatus: 'neglected', healthLabel: HEALTH_MAP.neglected };
   }
 }
