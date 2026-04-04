@@ -260,7 +260,7 @@ Each step delivers a fully working vertical slice: controller + service + DTOs +
 
 ---
 
-## Phase 4: Checkins, Energy & Reflections
+## Phase 4: Checkins, Energy & Reflections - DONE
 
 ### Step 4.1 — Checkins Module - DONE
 
@@ -303,7 +303,7 @@ Each step delivers a fully working vertical slice: controller + service + DTOs +
 
 ---
 
-### Step 4.3 — Reflections Module
+### Step 4.3 — Reflections Module - DONE
 
 **Spec refs:** §5.10, §6.7
 
@@ -571,7 +571,7 @@ Phase 3: Core CRUD
 Phase 4: Checkins, Energy & Reflections
   [x] 4.1 — Checkins Module
   [x] 4.2 — Energy Module
-  [ ] 4.3 — Reflections Module
+  [x] 4.3 — Reflections Module
 
 Phase 5: Computed Data
   [ ] 5.1 — Momentum Module
