@@ -18,6 +18,7 @@ import { ActionBundlesModule } from './action-bundles/action-bundles.module';
 import { AreasModule } from './areas/areas.module';
 import { SystemsModule } from './systems/systems.module';
 import { CheckinsModule } from './checkins/checkins.module';
+import { EnergyModule } from './energy/energy.module';
 import { UsersModule } from './users/users.module';
 
 /** Argument to nestjs-pino `serializers.req` (pino-http request wrapper). */
@@ -60,6 +61,7 @@ type PinoSerializedReq = {
     ActionBundlesModule,
     AreasModule,
     CheckinsModule,
+    EnergyModule,
     SystemsModule,
     UsersModule,
   ],

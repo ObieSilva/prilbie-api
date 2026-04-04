@@ -284,7 +284,7 @@ Each step delivers a fully working vertical slice: controller + service + DTOs +
 
 ---
 
-### Step 4.2 — Energy Module
+### Step 4.2 — Energy Module - DONE
 
 **Spec refs:** §5.9, §6.6
 
@@ -560,17 +560,17 @@ Phase 1: Project Scaffold & Infrastructure
   [x] 1.8 — Health Module
 
 Phase 2: Auth & User Management
-  [ ] 2.1 — Auth Module (Clerk Webhook)
-  [ ] 2.2 — Users Module (Profile + Onboarding)
+  [x] 2.1 — Auth Module (Clerk Webhook)
+  [x] 2.2 — Users Module (Profile + Onboarding)
 
 Phase 3: Core CRUD
-  [ ] 3.1 — Systems Module
-  [ ] 3.2 — Areas Module
-  [ ] 3.3 — Action Bundles Module
+  [x] 3.1 — Systems Module
+  [x] 3.2 — Areas Module
+  [x] 3.3 — Action Bundles Module
 
 Phase 4: Checkins, Energy & Reflections
   [x] 4.1 — Checkins Module
-  [ ] 4.2 — Energy Module
+  [x] 4.2 — Energy Module
   [ ] 4.3 — Reflections Module
 
 Phase 5: Computed Data
