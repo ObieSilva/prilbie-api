@@ -585,8 +585,8 @@ Phase 7: Rate Limiting & Swagger
   [x] 7.2 — Swagger Annotations
 
 Phase 8: Testing
-  [ ] 8.1 — Test Infrastructure
-  [ ] 8.2 — Unit Tests
+  [x] 8.1 — Test Infrastructure
+  [x] 8.2 — Unit Tests
   [ ] 8.3 — Integration / E2E Tests
 
 Phase 9: Deployment
