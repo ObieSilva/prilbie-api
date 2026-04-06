@@ -7,9 +7,9 @@ import { config } from 'dotenv';
 
 import { AppModule } from '../../src/app.module';
 import { configureApp } from '../../src/configure-app';
-import { ClerkAuthGuard } from '../../src/common/guards/clerk-auth.guard';
 
-import { mockClerkAuthGuard, TEST_CLERK_USER_ID } from './mock-auth';
+import { E2E_FALLBACK_CLERK_WEBHOOK_SECRET } from './e2e-clerk-webhook-secret';
+import { TEST_CLERK_USER_ID } from './mock-auth';
 
 const testEnvPath = resolve(process.cwd(), '.env.test');
 
@@ -26,34 +26,27 @@ export function loadTestEnv(): void {
     );
   }
   config({ path: testEnvPath, override: true });
+  if (!process.env.CLERK_WEBHOOK_SECRET?.trim()) {
+    process.env.CLERK_WEBHOOK_SECRET = E2E_FALLBACK_CLERK_WEBHOOK_SECRET;
+  }
   testEnvLoaded = true;
 }
 
-export type CreateE2eApplicationOptions = {
-  clerkUserId?: string;
-};
-
 /**
  * Creates a Nest application for HTTP e2e tests (Supertest).
- * When `clerkUserId` is set, {@link ClerkAuthGuard} is replaced with a no-JWT mock.
+ * Authenticated routes: use `authedRequest` from `test/helpers/e2e-authed-request.ts` and `setup-e2e-clerk.ts`
+ * (mocked Clerk `sub` is always {@link TEST_CLERK_USER_ID}).
  */
-export async function createE2eApplication(
-  options: CreateE2eApplicationOptions = {},
-): Promise<INestApplication> {
+export async function createE2eApplication(): Promise<INestApplication> {
   loadTestEnv();
 
-  let builder = Test.createTestingModule({
+  const moduleFixture: TestingModule = await Test.createTestingModule({
     imports: [AppModule],
+  }).compile();
+  const app = moduleFixture.createNestApplication({
+    bufferLogs: true,
+    rawBody: true,
   });
-
-  if (options.clerkUserId !== undefined) {
-    builder = builder
-      .overrideGuard(ClerkAuthGuard)
-      .useValue(mockClerkAuthGuard(options.clerkUserId));
-  }
-
-  const moduleFixture: TestingModule = await builder.compile();
-  const app = moduleFixture.createNestApplication({ bufferLogs: true });
   configureApp(app);
   await app.init();
   return app;

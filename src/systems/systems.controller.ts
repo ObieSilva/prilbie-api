@@ -8,7 +8,6 @@ import {
   Param,
   Patch,
   Post,
-  UsePipes,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { SkipThrottle, Throttle } from '@nestjs/throttler';
@@ -36,10 +35,9 @@ export class SystemsController {
   @Post()
   @Throttle({ default: RATE_LIMITS.WRITE })
   @HttpCode(HttpStatus.CREATED)
-  @UsePipes(new ZodValidationPipe(CreateSystemDto.schema))
   create(
     @CurrentUser() auth: { userId: string },
-    @Body() dto: CreateSystemDto,
+    @Body(new ZodValidationPipe(CreateSystemDto.schema)) dto: CreateSystemDto,
   ) {
     return this.systemsService.create(auth.userId, dto);
   }
@@ -47,10 +45,10 @@ export class SystemsController {
   @Patch('reorder')
   @Throttle({ default: RATE_LIMITS.WRITE })
   @HttpCode(HttpStatus.OK)
-  @UsePipes(new ZodValidationPipe(ReorderSystemsDto.schema))
   reorder(
     @CurrentUser() auth: { userId: string },
-    @Body() dto: ReorderSystemsDto,
+    @Body(new ZodValidationPipe(ReorderSystemsDto.schema))
+    dto: ReorderSystemsDto,
   ) {
     return this.systemsService.reorder(auth.userId, dto);
   }
@@ -62,11 +60,10 @@ export class SystemsController {
 
   @Patch(':id')
   @Throttle({ default: RATE_LIMITS.WRITE })
-  @UsePipes(new ZodValidationPipe(UpdateSystemDto.schema))
   update(
     @CurrentUser() auth: { userId: string },
     @Param('id') id: string,
-    @Body() dto: UpdateSystemDto,
+    @Body(new ZodValidationPipe(UpdateSystemDto.schema)) dto: UpdateSystemDto,
   ) {
     return this.systemsService.update(auth.userId, id, dto);
   }

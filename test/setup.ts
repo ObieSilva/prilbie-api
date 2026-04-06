@@ -1,8 +1,9 @@
-import { execSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import { config } from 'dotenv';
+
+import { E2E_FALLBACK_CLERK_WEBHOOK_SECRET } from './helpers/e2e-clerk-webhook-secret';
 
 const envTestPath = resolve(process.cwd(), '.env.test');
 if (!existsSync(envTestPath)) {
@@ -18,10 +19,6 @@ if (!process.env.DATABASE_URL?.trim()) {
   );
 }
 
-beforeAll(() => {
-  execSync('npx prisma migrate deploy', {
-    cwd: process.cwd(),
-    stdio: 'inherit',
-    env: process.env,
-  });
-}, 120000);
+if (!process.env.CLERK_WEBHOOK_SECRET?.trim()) {
+  process.env.CLERK_WEBHOOK_SECRET = E2E_FALLBACK_CLERK_WEBHOOK_SECRET;
+}

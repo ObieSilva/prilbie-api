@@ -9,7 +9,6 @@ import {
   Post,
   Query,
   Sse,
-  UsePipes,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { SkipThrottle, Throttle } from '@nestjs/throttler';
@@ -44,10 +43,10 @@ export class AiCoachController {
   @Throttle({ default: RATE_LIMITS.WRITE })
   @SkipThrottle({ ai: true })
   @HttpCode(HttpStatus.CREATED)
-  @UsePipes(new ZodValidationPipe(CreateConversationDto.schema))
   createConversation(
     @CurrentUser() auth: { userId: string },
-    @Body() dto: CreateConversationDto,
+    @Body(new ZodValidationPipe(CreateConversationDto.schema))
+    dto: CreateConversationDto,
   ) {
     return this.aiCoachService.createConversation(auth.userId, dto);
   }
@@ -115,10 +114,9 @@ export class AiCoachController {
   @Post('apply-suggestion')
   @Throttle({ default: RATE_LIMITS.WRITE })
   @SkipThrottle({ ai: true })
-  @UsePipes(new ZodValidationPipe(ApplySuggestionSchema))
   applySuggestion(
     @CurrentUser() auth: { userId: string },
-    @Body() dto: ApplySuggestionDto,
+    @Body(new ZodValidationPipe(ApplySuggestionSchema)) dto: ApplySuggestionDto,
   ) {
     return this.aiCoachService.applySuggestion(auth.userId, dto);
   }

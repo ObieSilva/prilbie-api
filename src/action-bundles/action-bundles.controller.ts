@@ -8,7 +8,6 @@ import {
   Param,
   Patch,
   Post,
-  UsePipes,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { SkipThrottle, Throttle } from '@nestjs/throttler';
@@ -38,22 +37,20 @@ export class ActionBundlesController {
   @Post('areas/:areaId/bundles')
   @Throttle({ default: RATE_LIMITS.WRITE })
   @HttpCode(HttpStatus.CREATED)
-  @UsePipes(new ZodValidationPipe(CreateBundleDto.schema))
   create(
     @CurrentUser() auth: { userId: string },
     @Param('areaId') areaId: string,
-    @Body() dto: CreateBundleDto,
+    @Body(new ZodValidationPipe(CreateBundleDto.schema)) dto: CreateBundleDto,
   ) {
     return this.actionBundlesService.create(auth.userId, areaId, dto);
   }
 
   @Patch('bundles/:id')
   @Throttle({ default: RATE_LIMITS.WRITE })
-  @UsePipes(new ZodValidationPipe(UpdateBundleDto.schema))
   update(
     @CurrentUser() auth: { userId: string },
     @Param('id') id: string,
-    @Body() dto: UpdateBundleDto,
+    @Body(new ZodValidationPipe(UpdateBundleDto.schema)) dto: UpdateBundleDto,
   ) {
     return this.actionBundlesService.update(auth.userId, id, dto);
   }

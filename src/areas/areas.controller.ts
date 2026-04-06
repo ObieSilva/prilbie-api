@@ -8,7 +8,6 @@ import {
   Param,
   Patch,
   Post,
-  UsePipes,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { SkipThrottle, Throttle } from '@nestjs/throttler';
@@ -38,22 +37,20 @@ export class AreasController {
   @Post('systems/:systemId/areas')
   @Throttle({ default: RATE_LIMITS.WRITE })
   @HttpCode(HttpStatus.CREATED)
-  @UsePipes(new ZodValidationPipe(CreateAreaDto.schema))
   create(
     @CurrentUser() auth: { userId: string },
     @Param('systemId') systemId: string,
-    @Body() dto: CreateAreaDto,
+    @Body(new ZodValidationPipe(CreateAreaDto.schema)) dto: CreateAreaDto,
   ) {
     return this.areasService.create(auth.userId, systemId, dto);
   }
 
   @Patch('areas/:id')
   @Throttle({ default: RATE_LIMITS.WRITE })
-  @UsePipes(new ZodValidationPipe(UpdateAreaDto.schema))
   update(
     @CurrentUser() auth: { userId: string },
     @Param('id') id: string,
-    @Body() dto: UpdateAreaDto,
+    @Body(new ZodValidationPipe(UpdateAreaDto.schema)) dto: UpdateAreaDto,
   ) {
     return this.areasService.update(auth.userId, id, dto);
   }

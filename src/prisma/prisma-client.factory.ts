@@ -15,7 +15,7 @@ export function createPrismaClientOptions():
 
   // BACKEND_SPEC §2.4 — require() avoids bundling ws/neon in local dev
   /* eslint-disable @typescript-eslint/no-require-imports, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call */
-  const { Pool, neonConfig } = require('@neondatabase/serverless');
+  const { neonConfig } = require('@neondatabase/serverless');
   const { PrismaNeon } = require('@prisma/adapter-neon');
   const ws = require('ws');
   neonConfig.webSocketConstructor = ws;
@@ -25,8 +25,8 @@ export function createPrismaClientOptions():
     throw new Error('DATABASE_URL is required when USE_NEON=true');
   }
 
-  const pool = new Pool({ connectionString });
-  const adapter = new PrismaNeon(pool);
+  // PrismaNeon is a factory: it builds `Pool` from config via `connect()`. Do not pass a Pool instance.
+  const adapter = new PrismaNeon({ connectionString });
 
   return { adapter } as Prisma.PrismaClientOptions;
   /* eslint-enable @typescript-eslint/no-require-imports, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call */

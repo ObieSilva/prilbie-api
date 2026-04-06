@@ -8,7 +8,6 @@ import {
   Param,
   Post,
   Query,
-  UsePipes,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { SkipThrottle, Throttle } from '@nestjs/throttler';
@@ -39,10 +38,9 @@ export class CheckinsController {
   @Post()
   @Throttle({ default: RATE_LIMITS.WRITE })
   @HttpCode(HttpStatus.CREATED)
-  @UsePipes(new ZodValidationPipe(CreateCheckinDto.schema))
   create(
     @CurrentUser() auth: { userId: string },
-    @Body() dto: CreateCheckinDto,
+    @Body(new ZodValidationPipe(CreateCheckinDto.schema)) dto: CreateCheckinDto,
   ) {
     return this.checkinsService.create(auth.userId, dto);
   }

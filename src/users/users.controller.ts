@@ -7,7 +7,6 @@ import {
   HttpStatus,
   Patch,
   Post,
-  UsePipes,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { SkipThrottle, Throttle } from '@nestjs/throttler';
@@ -33,10 +32,9 @@ export class UsersController {
 
   @Patch()
   @Throttle({ default: RATE_LIMITS.WRITE })
-  @UsePipes(new ZodValidationPipe(UpdateUserDto.schema))
   updateProfile(
     @CurrentUser() auth: { userId: string },
-    @Body() dto: UpdateUserDto,
+    @Body(new ZodValidationPipe(UpdateUserDto.schema)) dto: UpdateUserDto,
   ) {
     return this.usersService.updateProfile(auth.userId, dto);
   }
@@ -44,8 +42,10 @@ export class UsersController {
   @Post('onboard')
   @Throttle({ default: RATE_LIMITS.WRITE })
   @HttpCode(HttpStatus.CREATED)
-  @UsePipes(new ZodValidationPipe(OnboardingDto.schema))
-  onboard(@CurrentUser() auth: { userId: string }, @Body() dto: OnboardingDto) {
+  onboard(
+    @CurrentUser() auth: { userId: string },
+    @Body(new ZodValidationPipe(OnboardingDto.schema)) dto: OnboardingDto,
+  ) {
     return this.usersService.onboard(auth.userId, dto);
   }
 

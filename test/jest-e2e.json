@@ -1,4 +1,5 @@
 {
+  "globalSetup": "<rootDir>/global-setup-e2e.js",
   "moduleFileExtensions": [
     "js",
     "json",
@@ -8,7 +9,8 @@
   "testEnvironment": "node",
   "testRegex": ".e2e-spec.ts$",
   "setupFilesAfterEnv": [
-    "<rootDir>/setup.ts"
+    "<rootDir>/setup.ts",
+    "<rootDir>/setup-e2e-clerk.ts"
   ],
   "maxWorkers": 1,
   "testTimeout": 120000,
