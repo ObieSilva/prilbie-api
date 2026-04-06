@@ -1,15 +1,23 @@
+# Node.js
 node_modules/
 dist/
 coverage/
 
+# Environment variables
 .env
 .env.local
 .env.*.local
 
+# Build artifacts
 *.js.map
 
+# OS
 .DS_Store
 Thumbs.db
 
+# IDEs
 .idea/
 .vscode/
+
+# Cursor - personal rules
+.cursor/rules/backend-blueprint.mdc
