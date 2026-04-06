@@ -7,6 +7,11 @@
   "rootDir": ".",
   "testEnvironment": "node",
   "testRegex": ".e2e-spec.ts$",
+  "setupFilesAfterEnv": [
+    "<rootDir>/setup.ts"
+  ],
+  "maxWorkers": 1,
+  "testTimeout": 120000,
   "transform": {
     "^.+\\.(t|j)s$": [
       "ts-jest",

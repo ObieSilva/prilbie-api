@@ -1,16 +1,15 @@
 import { INestApplication } from '@nestjs/common';
-import { NestFactory } from '@nestjs/core';
 import request from 'supertest';
 import { App } from 'supertest/types';
-import { AppModule } from '../src/app.module';
-import { configureApp } from '../src/configure-app';
+
+import { createE2eApplication } from './helpers/test-app';
+import { truncateAppTables } from './helpers/truncate-app-tables';
 
 describe('App bootstrap (e2e)', () => {
   let app: INestApplication<App>;
 
   beforeEach(async () => {
-    app = await NestFactory.create(AppModule, { bufferLogs: true });
-    configureApp(app);
+    app = await createE2eApplication();
   });
 
   it('GET / returns 404 (no root route)', () => {
@@ -22,6 +21,7 @@ describe('App bootstrap (e2e)', () => {
   });
 
   afterEach(async () => {
+    truncateAppTables();
     await app.close();
   });
 });

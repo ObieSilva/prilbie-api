@@ -423,7 +423,7 @@ Each step delivers a fully working vertical slice: controller + service + DTOs +
 
 ## Phase 8: Testing
 
-### Step 8.1 — Test Infrastructure
+### Step 8.1 — Test Infrastructure - DONE
 
 **Spec refs:** §11.1–§11.5
 
