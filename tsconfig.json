@@ -18,6 +18,7 @@
     "skipLibCheck": true,
     "strict": true,
     "forceConsistentCasingInFileNames": true,
+    "types": ["node", "jest"],
     "noFallthroughCasesInSwitch": false
   },
   "include": ["src/**/*"],

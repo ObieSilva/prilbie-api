@@ -440,7 +440,7 @@ Each step delivers a fully working vertical slice: controller + service + DTOs +
 
 ---
 
-### Step 8.2 — Unit Tests
+### Step 8.2 — Unit Tests - DONE
 
 **Spec refs:** §11.1
 
