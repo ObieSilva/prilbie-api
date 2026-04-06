@@ -5,6 +5,7 @@ const nodeEnvSchema = z.enum(['development', 'production', 'test']);
 const PRODUCTION_REQUIRED_KEYS = [
   'CLERK_SECRET_KEY',
   'CLERK_JWT_KEY',
+  'CLERK_WEBHOOK_SECRET',
   'OPENAI_API_KEY',
 ] as const;
 
