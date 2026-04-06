@@ -476,19 +476,18 @@ Each step delivers a fully working vertical slice: controller + service + DTOs +
 
 ## Phase 9: Deployment
 
-### Step 9.1 — Cloud Build & Cloud Run Setup - DONE
+### Step 9.1 — Cloud Build & Cloud Run Setup
 
 **Spec refs:** §12.3, §12.4, §12.5
 
 **Do:**
 
-- Use root `**cloudbuild.yaml`** (Prilbie: project `prilbie`, region `**us-east4**`, Artifact Registry `**prilbie-repo**`, Cloud Run service `**prilbie-api**`, image `us-east4-docker.pkg.dev/prilbie/prilbie-repo/prilbie-api:$COMMIT_SHA`). Pipeline: unit tests + `prisma generate` → Docker build/push → `prisma migrate deploy` → `gcloud run deploy`.
-- **Secret Manager** (resource ids must match `--set-secrets` in `cloudbuild.yaml`): `neon-db-url`, `clerk-secret`, `clerk-jwt-key`, `clerk-webhook-secret`, `openai-key`. Do not commit values.
+- Use root **`cloudbuild.yaml`** (Prilbie: project `prilbie`, region **`us-east4`**, Artifact Registry **`prilbie-repo`**, Cloud Run service **`prilbie-api`**, image `us-east4-docker.pkg.dev/prilbie/prilbie-repo/prilbie-api:$COMMIT_SHA`). Pipeline: unit tests + `prisma generate` → Docker build/push → `prisma migrate deploy` → `gcloud run deploy`.
+- **Secret Manager** (resource ids must match `--set-secrets` in `cloudbuild.yaml`): `neon-db-url`, `clerk-secret`, `clerk-jwt-key`, `clerk-webhook-secret`, `openai-key`, `upstash-url`, `upstash-token`. Values map to `UPSTASH_REDIS_URL` and `UPSTASH_REDIS_TOKEN` on Cloud Run (Upstash **REST** URL and token). Do not commit values.
 - **Artifact Registry:** Docker repo `prilbie-repo` in `us-east4` (one-time).
 - **IAM:** Cloud Build service account needs Secret Accessor (on those secrets), Artifact Registry Writer, and permissions to deploy Cloud Run. The **Cloud Run runtime** service account needs **Secret Manager Secret Accessor** on the same secrets when using `--set-secrets`.
-- `**$COMMIT_SHA`:** Set automatically when Cloud Build runs from a **connected repo trigger**. For manual `gcloud builds submit`, pass e.g. `--substitutions=COMMIT_SHA=$(git rev-parse HEAD)` or the image tag may be invalid.
-- **Upstash (optional):** Not wired in this pipeline; production uses **in-memory cache** unless you add secrets (e.g. `upstash-url`, `upstash-token`) and extend Cloud Run `--set-secrets` plus app env vars. See §12.5 / `.env.example`.
-- **E2E in CI (optional):** `cloudbuild.yaml` runs `**npm test`** only. Adding `test:e2e` would require a test database URL (e.g. separate secret) and Clerk test configuration.
+- **`$COMMIT_SHA`:** Set automatically when Cloud Build runs from a **connected repo trigger**. For manual `gcloud builds submit`, pass e.g. `--substitutions=COMMIT_SHA=$(git rev-parse HEAD)` or the image tag may be invalid.
+- **E2E in CI (optional):** `cloudbuild.yaml` runs **`npm test`** only. Adding `test:e2e` would require a test database URL (e.g. separate secret) and Clerk test configuration.
 
 **Verify:** `GET https://<cloud-run-url>/health` returns `{ status: "ok" }`. `GET /health/ready` returns 200. All authenticated endpoints work with real Clerk JWTs.
 

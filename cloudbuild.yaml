@@ -47,7 +47,7 @@ steps:
       - '--allow-unauthenticated'
       - '--service-account=cloudbuild-sa@prilbie.iam.gserviceaccount.com'
       - '--set-env-vars=NODE_ENV=production,USE_NEON=true,CORS_ORIGINS=https://prilbie.com'
-      - '--set-secrets=DATABASE_URL=neon-db-url:latest,CLERK_SECRET_KEY=clerk-secret:latest,CLERK_JWT_KEY=clerk-jwt-key:latest,CLERK_WEBHOOK_SECRET=clerk-webhook-secret:latest,OPENAI_API_KEY=openai-key:latest'
+      - '--set-secrets=DATABASE_URL=neon-db-url:latest,CLERK_SECRET_KEY=clerk-secret:latest,CLERK_JWT_KEY=clerk-jwt-key:latest,CLERK_WEBHOOK_SECRET=clerk-webhook-secret:latest,OPENAI_API_KEY=openai-key:latest,UPSTASH_REDIS_URL=upstash-url:latest,UPSTASH_REDIS_TOKEN=upstash-token:latest'
 
 substitutions:
   _REGION: us-east4
