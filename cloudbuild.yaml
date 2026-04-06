@@ -1,0 +1,59 @@
+# Prilbie API: unit tests → Docker image → Artifact Registry → Prisma migrate → Cloud Run.
+# Image tag: $COMMIT_SHA (set automatically on repo triggers; for `gcloud builds submit`, pass
+# --substitutions=COMMIT_SHA=$(git rev-parse HEAD)).
+steps:
+  - name: node:20-alpine
+    entrypoint: sh
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        export DATABASE_URL="postgresql://prisma:prisma@127.0.0.1:5432/prisma"
+        npm ci
+        npx prisma generate
+        npm test
+
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - '-t'
+      - '$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO/$_SERVICE:$COMMIT_SHA'
+      - '.'
+
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - '$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO/$_SERVICE:$COMMIT_SHA'
+
+  - name: node:20-alpine
+    entrypoint: sh
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        npm ci
+        npx prisma migrate deploy
+    secretEnv:
+      - DATABASE_URL
+
+  - name: gcr.io/cloud-builders/gcloud
+    args:
+      - run
+      - deploy
+      - prilbie-api
+      - '--image=$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO/$_SERVICE:$COMMIT_SHA'
+      - '--region=us-east4'
+      - '--platform=managed'
+      - '--allow-unauthenticated'
+      - '--set-env-vars=NODE_ENV=production,USE_NEON=true,CORS_ORIGINS=https://prilbie.com'
+      - '--set-secrets=DATABASE_URL=neon-db-url:latest,CLERK_SECRET_KEY=clerk-secret:latest,CLERK_JWT_KEY=clerk-jwt-key:latest,CLERK_WEBHOOK_SECRET=clerk-webhook-secret:latest,OPENAI_API_KEY=openai-key:latest'
+
+substitutions:
+  _REGION: us-east4
+  _REPO: prilbie-repo
+  _SERVICE: prilbie-api
+
+availableSecrets:
+  secretManager:
+    - versionName: projects/$PROJECT_ID/secrets/neon-db-url/versions/latest
+      env: DATABASE_URL

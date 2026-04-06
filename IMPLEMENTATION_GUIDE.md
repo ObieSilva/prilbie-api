@@ -456,7 +456,7 @@ Each step delivers a fully working vertical slice: controller + service + DTOs +
 
 ---
 
-### Step 8.3 — Integration / E2E Tests
+### Step 8.3 — Integration / E2E Tests - DONE
 
 **Spec refs:** §11.1
 
@@ -476,17 +476,19 @@ Each step delivers a fully working vertical slice: controller + service + DTOs +
 
 ## Phase 9: Deployment
 
-### Step 9.1 — Cloud Build & Cloud Run Setup
+### Step 9.1 — Cloud Build & Cloud Run Setup - DONE
 
 **Spec refs:** §12.3, §12.4, §12.5
 
 **Do:**
 
-- Create `cloudbuild.yaml` from §12.3.
-- Set up GCP Secret Manager secrets for all env vars from §12.5.
-- Set up Artifact Registry repo.
-- Deploy to Cloud Run.
-- Verify health endpoints respond.
+- Use root `**cloudbuild.yaml`** (Prilbie: project `prilbie`, region `**us-east4**`, Artifact Registry `**prilbie-repo**`, Cloud Run service `**prilbie-api**`, image `us-east4-docker.pkg.dev/prilbie/prilbie-repo/prilbie-api:$COMMIT_SHA`). Pipeline: unit tests + `prisma generate` → Docker build/push → `prisma migrate deploy` → `gcloud run deploy`.
+- **Secret Manager** (resource ids must match `--set-secrets` in `cloudbuild.yaml`): `neon-db-url`, `clerk-secret`, `clerk-jwt-key`, `clerk-webhook-secret`, `openai-key`. Do not commit values.
+- **Artifact Registry:** Docker repo `prilbie-repo` in `us-east4` (one-time).
+- **IAM:** Cloud Build service account needs Secret Accessor (on those secrets), Artifact Registry Writer, and permissions to deploy Cloud Run. The **Cloud Run runtime** service account needs **Secret Manager Secret Accessor** on the same secrets when using `--set-secrets`.
+- `**$COMMIT_SHA`:** Set automatically when Cloud Build runs from a **connected repo trigger**. For manual `gcloud builds submit`, pass e.g. `--substitutions=COMMIT_SHA=$(git rev-parse HEAD)` or the image tag may be invalid.
+- **Upstash (optional):** Not wired in this pipeline; production uses **in-memory cache** unless you add secrets (e.g. `upstash-url`, `upstash-token`) and extend Cloud Run `--set-secrets` plus app env vars. See §12.5 / `.env.example`.
+- **E2E in CI (optional):** `cloudbuild.yaml` runs `**npm test`** only. Adding `test:e2e` would require a test database URL (e.g. separate secret) and Clerk test configuration.
 
 **Verify:** `GET https://<cloud-run-url>/health` returns `{ status: "ok" }`. `GET /health/ready` returns 200. All authenticated endpoints work with real Clerk JWTs.
 
@@ -587,10 +589,10 @@ Phase 7: Rate Limiting & Swagger
 Phase 8: Testing
   [x] 8.1 — Test Infrastructure
   [x] 8.2 — Unit Tests
-  [ ] 8.3 — Integration / E2E Tests
+  [x] 8.3 — Integration / E2E Tests
 
 Phase 9: Deployment
-  [ ] 9.1 — Cloud Build & Cloud Run Setup
+  [x] 9.1 — Cloud Build & Cloud Run Setup
 
 Phase 10: Frontend Migration
   [ ] Reference only — see §14
