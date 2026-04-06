@@ -1,8 +1,10 @@
-# Consistency App — Backend Specification Document
+# Prilbie API — Backend Specification Document
 
-> **Purpose:** Complete implementation guide for the backend engineering team.
+> **Purpose:** Canonical backend specification for the **`prilbie-api`** repository (Prilbie — life systems, habits, and daily consistency).
 > **Stack:** NestJS · PostgreSQL (Neon) · Clerk Auth · Zod · Swagger · Docker · Google Cloud Run
 > **Date:** April 2026
+>
+> **Source of truth:** If this document drifts, prefer the repository: **`Dockerfile`**, **`cloudbuild.yaml`**, **`prisma/schema.prisma`**, **`prisma.config.ts`**, **`src/config/env.schema.ts`**, and **`src/main.ts`** / **`src/configure-app.ts`**.
 
 ---
 
@@ -45,7 +47,7 @@
 | Validation   | **Zod only** + `nestjs-zod` (no class-validator)          |
 | API Docs     | Swagger via `@nestjs/swagger`                             |
 | Caching      | Upstash Redis (serverless) or Google Memorystore          |
-| AI           | OpenAI GPT-4o (or Anthropic Claude) via AI SDK or direct  |
+| AI           | OpenAI (`openai` package; default model `gpt-4o-mini`, override via `AI_MODEL`) |
 | Logging      | `nestjs-pino` (structured JSON)                           |
 | Container    | Docker + Docker Compose                                   |
 | Hosting      | Google Cloud Run                                          |
@@ -87,7 +89,7 @@ All API routes are prefixed with `/api/v1`. This allows introducing `/api/v2`
 in the future without breaking existing clients.
 
 ```typescript
-// In main.ts
+// Implemented in src/configure-app.ts (called from main.ts and e2e test app factory)
 app.setGlobalPrefix('api/v1', {
   exclude: ['/health', '/health/ready', '/webhooks/clerk'],
 });
@@ -124,7 +126,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 // ─── User Profile ────────────────────────────────────────
@@ -368,6 +369,8 @@ model AiMessage {
 }
 ```
 
+**Prisma 7:** The database URL is **not** declared in `schema.prisma`. It is supplied via **`prisma.config.ts`**, which loads the repo-root `.env` using **`src/config/root-env-path.ts`** and `env('DATABASE_URL')` for CLI commands (`generate`, `migrate`, etc.).
+
 ### 2.3 Key Schema Design Decisions
 
 1. **ActionBundle is a first-class entity.** In the current frontend, bundles are implicitly
@@ -418,47 +421,17 @@ model AiMessage {
 
 ### 2.4 Prisma Connection Setup (Environment-Aware)
 
-The `PrismaService` conditionally uses the Neon serverless adapter in production
-(Cloud Run) and the standard Prisma TCP connection for local development (Docker
-Compose Postgres). This avoids the overhead of WebSocket tunnelling during local
-development and keeps `docker-compose up` simple.
+`createPrismaClientOptions()` in **`src/prisma/prisma-client.factory.ts`** returns Neon
+adapter options when `USE_NEON=true`, otherwise `undefined` (default Prisma TCP client).
+**`src/prisma/prisma.service.ts`** applies those options in its constructor and implements
+`OnModuleInit` / `OnModuleDestroy` for connect/disconnect.
 
-```typescript
-// src/prisma/prisma.service.ts
-import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
-import { PrismaClient } from '@prisma/client';
+When `USE_NEON=true`, the factory uses **`PrismaNeon`** from `@prisma/adapter-neon` with
+`@neondatabase/serverless` **`neonConfig.webSocketConstructor = ws`** (not a `Pool` passed
+into the adapter — the adapter is constructed with `{ connectionString }` per Prisma 7).
 
-@Injectable()
-export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
-  constructor() {
-    const useNeon = process.env.USE_NEON === 'true';
-
-    if (useNeon) {
-      // Dynamic import avoids bundling ws/neon in local dev
-      const { Pool, neonConfig } = require('@neondatabase/serverless');
-      const { PrismaNeon } = require('@prisma/adapter-neon');
-      const ws = require('ws');
-      neonConfig.webSocketConstructor = ws;
-
-      const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-      const adapter = new PrismaNeon(pool);
-      super({ adapter });
-    } else {
-      super();
-    }
-  }
-
-  async onModuleInit() {
-    await this.$connect();
-  }
-
-  async onModuleDestroy() {
-    await this.$disconnect();
-  }
-}
-```
-
-Set `USE_NEON=true` in production (Cloud Run) and omit it (or set to `false`) locally.
+Set `USE_NEON=true` in production (Cloud Run) and omit it (or set to `false`) when using
+local Docker Compose Postgres.
 
 ---
 
@@ -590,44 +563,63 @@ async handleClerkWebhook(rawBody: Buffer, headers: Record<string, string>) {
 
 ## 4. NestJS Project Structure
 
+Repository root **`prilbie-api/`** (illustrative tree; see repo for full file list).
+**Unit tests** are co-located as **`src/**/*.spec.ts`** (`jest.config.ts`); **`test/`** holds e2e only.
+
 ```
-backend/
+prilbie-api/
 ├── prisma/
 │   ├── schema.prisma
-│   ├── migrations/
-│   └── seed.ts                             // dev/test seed data
+│   └── migrations/
+├── prisma.config.ts                        // Prisma 7: DATABASE_URL for CLI
 ├── src/
-│   ├── main.ts
+│   ├── main.ts                             // NestFactory + rawBody: true; configureApp()
+│   ├── configure-app.ts                    // helmet, CORS, global prefix, Swagger
 │   ├── app.module.ts
+│   ├── config/
+│   │   ├── env.schema.ts                   // Zod validateEnv for ConfigModule
+│   │   └── root-env-path.ts                // repo-root .env path for Prisma CLI
 │   ├── common/
 │   │   ├── guards/
 │   │   │   └── clerk-auth.guard.ts
 │   │   ├── decorators/
 │   │   │   └── current-user.decorator.ts
 │   │   ├── interceptors/
-│   │   │   └── transform.interceptor.ts    // standard response envelope
+│   │   │   └── transform.interceptor.ts
 │   │   ├── filters/
 │   │   │   └── http-exception.filter.ts
 │   │   ├── middleware/
-│   │   │   └── correlation-id.middleware.ts // request tracing
+│   │   │   └── correlation-id.middleware.ts
 │   │   ├── pipes/
 │   │   │   └── zod-validation.pipe.ts
 │   │   ├── schemas/
-│   │   │   ├── enums.ts                    // shared Zod enum schemas
-│   │   │   └── shared.ts                   // TierInputSchema, BundleLevelsSchema
+│   │   │   ├── enums.ts
+│   │   │   └── shared.ts
 │   │   ├── constants/
-│   │   │   └── momentum.ts                 // points, tiers, milestones
+│   │   │   ├── momentum.ts
+│   │   │   ├── icons.ts
+│   │   │   ├── rate-limits.ts
+│   │   │   └── http-headers.ts
+│   │   ├── types/
+│   │   │   ├── api-response.ts
+│   │   │   └── authenticated-request.ts
+│   │   ├── utils/
+│   │   │   ├── date.utils.ts
+│   │   │   └── system-health.utils.ts
 │   │   └── dto/
 │   │       └── pagination.dto.ts
 │   ├── prisma/
 │   │   ├── prisma.module.ts
-│   │   └── prisma.service.ts               // Neon adapter setup
+│   │   ├── prisma.service.ts
+│   │   └── prisma-client.factory.ts        // USE_NEON + PrismaNeon adapter
 │   ├── cache/
 │   │   ├── cache.module.ts
-│   │   └── cache.service.ts                // Upstash Redis wrapper
+│   │   ├── cache.interface.ts
+│   │   ├── redis-cache.service.ts          // Upstash REST (@upstash/redis)
+│   │   └── memory-cache.service.ts         // fallback when Upstash unset
 │   ├── auth/
 │   │   ├── auth.module.ts
-│   │   └── auth.controller.ts              // Clerk webhook handler
+│   │   └── auth.controller.ts              // POST /webhooks/clerk (Svix)
 │   ├── users/
 │   │   ├── users.module.ts
 │   │   ├── users.controller.ts
@@ -641,48 +633,22 @@ backend/
 │   │   ├── systems.service.ts
 │   │   └── dto/
 │   │       ├── create-system.dto.ts
-│   │       └── update-system.dto.ts
+│   │       ├── update-system.dto.ts
+│   │       └── reorder-systems.dto.ts
 │   ├── areas/
-│   │   ├── areas.module.ts
-│   │   ├── areas.controller.ts
-│   │   ├── areas.service.ts
-│   │   └── dto/
-│   │       ├── create-area.dto.ts
-│   │       └── update-area.dto.ts
+│   │   └── …
 │   ├── action-bundles/
-│   │   ├── action-bundles.module.ts
-│   │   ├── action-bundles.controller.ts
-│   │   ├── action-bundles.service.ts
-│   │   └── dto/
-│   │       ├── create-bundle.dto.ts        // imports from common/schemas/shared
-│   │       └── update-bundle.dto.ts
+│   │   └── …
 │   ├── checkins/
-│   │   ├── checkins.module.ts
-│   │   ├── checkins.controller.ts
-│   │   ├── checkins.service.ts
-│   │   └── dto/
-│   │       └── create-checkin.dto.ts
+│   │   └── …
 │   ├── energy/
-│   │   ├── energy.module.ts
-│   │   ├── energy.controller.ts
-│   │   ├── energy.service.ts
-│   │   └── dto/
-│   │       ├── set-global-energy.dto.ts
-│   │       └── set-system-energy.dto.ts
+│   │   └── …
 │   ├── reflections/
-│   │   ├── reflections.module.ts
-│   │   ├── reflections.controller.ts
-│   │   ├── reflections.service.ts
-│   │   └── dto/
-│   │       └── upsert-reflection.dto.ts
+│   │   └── …
 │   ├── momentum/
-│   │   ├── momentum.module.ts
-│   │   ├── momentum.controller.ts
-│   │   └── momentum.service.ts
+│   │   └── …
 │   ├── today/
-│   │   ├── today.module.ts
-│   │   ├── today.controller.ts
-│   │   └── today.service.ts
+│   │   └── …
 │   ├── ai-coach/
 │   │   ├── ai-coach.module.ts
 │   │   ├── ai-coach.controller.ts
@@ -691,28 +657,30 @@ backend/
 │   │   └── dto/
 │   │       ├── create-conversation.dto.ts
 │   │       ├── send-message.dto.ts
+│   │       ├── suggest-systems.dto.ts
+│   │       ├── suggest-actions.dto.ts
 │   │       └── apply-suggestion.dto.ts
 │   └── health/
-│       └── health.controller.ts            // liveness + readiness probes
+│       ├── health.module.ts
+│       └── health.controller.ts
 ├── test/
-│   ├── setup.ts                            // test DB, mock factories
-│   ├── helpers/
-│   │   ├── test-app.ts                     // createTestingModule helper
-│   │   ├── mock-auth.ts                    // mock Clerk JWT
-│   │   └── mock-ai.ts                      // mock OpenAI
-│   ├── e2e/
-│   │   ├── systems.e2e-spec.ts
-│   │   ├── checkins.e2e-spec.ts
-│   │   └── ...
-│   └── unit/
-│       ├── momentum.service.spec.ts
-│       ├── checkins.service.spec.ts
-│       └── ...
+│   ├── setup.ts                            // loads .env.test
+│   ├── setup-e2e-clerk.ts
+│   ├── global-setup-e2e.js                 // prisma migrate deploy once per e2e run
+│   ├── jest-e2e.json
+│   ├── helpers/                            // test-app, mock-auth, mock-ai, e2e helpers, …
+│   └── e2e/
+│       ├── app.e2e-spec.ts
+│       ├── onboarding.e2e-spec.ts
+│       ├── systems.e2e-spec.ts
+│       ├── checkins-momentum.e2e-spec.ts
+│       ├── energy-reflections.e2e-spec.ts
+│       └── today.e2e-spec.ts
 ├── Dockerfile
 ├── docker-compose.yml
 ├── cloudbuild.yaml
 ├── .env.example
-├── tsconfig.json
+├── .env.test.example
 ├── jest.config.ts
 ├── package.json
 └── README.md
@@ -741,7 +709,7 @@ AppModule
 
 ### 4.2 Build Order
 
-Implement modules in this dependency order:
+Modules follow this dependency order (implemented in **`app.module.ts`**):
 
 1. PrismaModule (Neon DB connection)
 2. CacheModule (Upstash Redis)
@@ -2178,36 +2146,26 @@ if (status >= 500) {
 
 ### 11.1 Test Types
 
-| Type        | Location           | What It Tests                                    | Tools                     |
-| ----------- | ------------------ | ------------------------------------------------ | ------------------------- |
-| Unit        | `test/unit/`       | Service methods with mocked Prisma               | Jest, ts-jest              |
-| Integration | `test/e2e/`        | Full HTTP request → DB → response                | Jest, Supertest, test DB   |
-| E2E         | `test/e2e/`        | Multi-endpoint workflows (onboarding → checkin)  | Jest, Supertest            |
+| Type        | Location              | What It Tests                                    | Tools                     |
+| ----------- | --------------------- | ------------------------------------------------ | ------------------------- |
+| Unit        | `src/**/*.spec.ts`    | Service logic with mocked Prisma / deps          | Jest, ts-jest (`jest.config.ts`) |
+| E2E / HTTP  | `test/e2e/*.e2e-spec.ts` | Full HTTP → real test DB → response           | Jest, Supertest (`test/jest-e2e.json`) |
 
-### 11.2 Test Database
+### 11.2 Local & E2E Test Database
 
-Use a separate Neon branch or local PostgreSQL for tests:
+E2E tests use **`.env.test`** (copy from **`.env.test.example`**): a **dedicated** Postgres URL
+(Neon branch or local), **`NODE_ENV=test`**, and Clerk/OpenAI placeholder values acceptable
+for validation. **`test/global-setup-e2e.js`** runs **`npx prisma migrate deploy` once** per
+Jest parent process before any e2e file runs (avoids repeated migrate / lock contention).
 
-```env
-# .env.test
-DATABASE_URL=postgresql://user:pass@localhost:5432/consistency_app_test
-```
+**`test/setup.ts`** loads `.env.test` and applies defaults (e.g. webhook secret fallback for
+signing test webhooks). Table truncation and fixtures live under **`test/helpers/`** (see
+`truncate-app-tables.ts`, e2e onboarding helpers).
 
-```typescript
-// test/setup.ts
-beforeAll(async () => {
-  execSync('npx prisma migrate deploy', { env: { ...process.env, DATABASE_URL: testDbUrl } });
-});
-
-afterEach(async () => {
-  // Truncate all tables between tests
-  await prisma.$executeRawUnsafe(`
-    TRUNCATE TABLE checkins, actions, action_bundles, areas, systems,
-    daily_energies, system_energy_overrides, daily_reflections,
-    ai_messages, ai_conversations, user_profiles CASCADE
-  `);
-});
-```
+**CI (Cloud Build):** the pipeline does **not** use a real database for unit tests. It sets a
+**placeholder** `DATABASE_URL` (e.g. `postgresql://prisma:prisma@127.0.0.1:5432/prisma`) only
+so **`npx prisma generate`** can run; **`npm test`** exercises **unit tests only** with mocks.
+No dedicated test database secret is required in `cloudbuild.yaml` today.
 
 ### 11.3 Mock Clerk Auth
 
@@ -2244,14 +2202,18 @@ export const mockOpenAI = {
 
 ### 11.5 CI Pipeline Test Step
 
-Tests MUST run before deployment. See Section 12.3 for the updated cloudbuild.yaml
-that includes a test step.
+Cloud Build runs **`npm ci` → `npx prisma generate` → `npm test`** before the Docker build.
+The generate step uses a **synthetic** `DATABASE_URL` in the shell (see §12.3); unit tests do
+not connect to Postgres. Adding **`test:e2e`** to CI would require a separate design (real
+test DB URL, secrets, and longer runtime).
 
 ---
 
 ## 12. Docker & Deployment (GCP + Neon)
 
 ### 12.1 Dockerfile
+
+Authoritative copy: repository root **`Dockerfile`**. Summary:
 
 ```dockerfile
 # ── Build stage ──
@@ -2263,6 +2225,11 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY prisma ./prisma
+COPY prisma.config.ts ./
+COPY src/config ./src/config
+# Prisma 7 loads prisma.config.ts, which requires DATABASE_URL; generate does not connect.
+ARG DATABASE_URL="postgresql://prisma:prisma@127.0.0.1:5432/prisma"
+ENV DATABASE_URL=$DATABASE_URL
 RUN npx prisma generate
 
 COPY . .
@@ -2339,85 +2306,96 @@ volumes:
   pgdata:
 ```
 
-Note: For local development, use standard PostgreSQL. In staging/production,
-the `DATABASE_URL` points to **Neon** and the Redis URL points to **Upstash**.
-The Prisma adapter auto-detects the Neon driver when `previewFeatures = ["driverAdapters"]`
-is set.
+Note: For local development, use standard PostgreSQL via Compose (`consistency` /
+`consistency_app` match **`docker-compose.yml`**). In staging/production, `DATABASE_URL`
+points to **Neon**; set **`USE_NEON=true`** so **`prisma-client.factory.ts`** uses the Neon
+serverless adapter (`previewFeatures = ["driverAdapters"]` in `schema.prisma`). For cache, **`CacheModule`** uses **`@upstash/redis`** only when **both**
+`UPSTASH_REDIS_URL` (Upstash **REST** URL, `https://…`) and **`UPSTASH_REDIS_TOKEN`** are set;
+otherwise it uses **in-memory** cache. Local **`docker-compose.yml`** sets a `redis://` URL
+without a token, so the running API typically uses the **memory** implementation unless you
+add a matching token for a real Upstash dev database.
 
 ### 12.3 Google Cloud Deployment
 
 Services used:
 - **Cloud Run** — Hosts the Docker container (auto-scaling, pay-per-request)
 - **Neon** — Serverless PostgreSQL (external, not Cloud SQL)
-- **Upstash Redis** — Serverless cache (external)
-- **Secret Manager** — Stores DATABASE_URL, CLERK keys, OPENAI key
-- **Cloud Build** — CI/CD pipeline triggered on push to main
-- **Artifact Registry** — Docker image storage
+- **Upstash Redis** — Serverless cache (REST API; `@upstash/redis`)
+- **Secret Manager** — `neon-db-url`, Clerk keys + webhook, OpenAI, Upstash URL/token
+- **Cloud Build** — CI/CD (e.g. trigger on push to `main`)
+- **Artifact Registry** — Docker image storage (`prilbie-repo` in **`us-east4`** for production)
 
-cloudbuild.yaml:
+Authoritative pipeline: repository root **`cloudbuild.yaml`**. Excerpt (GCP project **`prilbie`**):
 
 ```yaml
+# Prilbie API: unit tests → Docker image → Artifact Registry → Prisma migrate → Cloud Run.
+# Image tag: $COMMIT_SHA (set on repo triggers; for gcloud builds submit use
+# --substitutions=COMMIT_SHA=$(git rev-parse HEAD)).
 steps:
-  # Run tests
-  - name: 'node:20-alpine'
-    entrypoint: 'sh'
+  - name: node:20-alpine
+    entrypoint: sh
     args:
-      - '-c'
-      - 'npm ci && npx prisma generate && npm run test'
-    secretEnv: ['DATABASE_URL_TEST']
+      - -c
+      - |
+        set -euo pipefail
+        export DATABASE_URL="postgresql://prisma:prisma@127.0.0.1:5432/prisma"
+        npm ci
+        npx prisma generate
+        npm test
 
-  # Build the Docker image
-  - name: 'gcr.io/cloud-builders/docker'
+  - name: gcr.io/cloud-builders/docker
     args:
-      - 'build'
+      - build
       - '-t'
-      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}:${COMMIT_SHA}'
+      - '$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO/$_SERVICE:$COMMIT_SHA'
       - '.'
 
-  # Push to Artifact Registry
-  - name: 'gcr.io/cloud-builders/docker'
+  - name: gcr.io/cloud-builders/docker
     args:
-      - 'push'
-      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}:${COMMIT_SHA}'
+      - push
+      - '$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO/$_SERVICE:$COMMIT_SHA'
 
-  # Run Prisma migrations against Neon
-  - name: 'node:20-alpine'
-    entrypoint: 'sh'
+  - name: node:20-alpine
+    entrypoint: sh
     args:
-      - '-c'
-      - 'npm ci && npx prisma migrate deploy'
-    secretEnv: ['DATABASE_URL']
+      - -c
+      - |
+        set -euo pipefail
+        npm ci
+        npx prisma migrate deploy
+    secretEnv:
+      - DATABASE_URL
 
-  # Deploy to Cloud Run
-  - name: 'gcr.io/cloud-builders/gcloud'
+  - name: gcr.io/cloud-builders/gcloud
     args:
-      - 'run'
-      - 'deploy'
-      - '${_SERVICE}'
-      - '--image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}:${COMMIT_SHA}'
-      - '--region=${_REGION}'
+      - run
+      - deploy
+      - prilbie-api
+      - '--image=$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO/$_SERVICE:$COMMIT_SHA'
+      - '--region=us-east4'
       - '--platform=managed'
       - '--allow-unauthenticated'
-      - '--set-env-vars=NODE_ENV=production'
-      - '--set-secrets=DATABASE_URL=neon-db-url:latest,CLERK_SECRET_KEY=clerk-secret:latest,CLERK_JWT_KEY=clerk-jwt-key:latest,OPENAI_API_KEY=openai-key:latest,CLERK_WEBHOOK_SECRET=clerk-webhook-secret:latest,UPSTASH_REDIS_URL=upstash-url:latest,UPSTASH_REDIS_TOKEN=upstash-token:latest'
-      - '--min-instances=0'
-      - '--max-instances=10'
-      - '--cpu=1'
-      - '--memory=512Mi'
-      - '--timeout=60s'
+      - '--service-account=cloudbuild-sa@prilbie.iam.gserviceaccount.com'
+      - '--set-env-vars=NODE_ENV=production,USE_NEON=true,CORS_ORIGINS=https://prilbie.com'
+      - '--set-secrets=DATABASE_URL=neon-db-url:latest,CLERK_SECRET_KEY=clerk-secret:latest,CLERK_JWT_KEY=clerk-jwt-key:latest,CLERK_WEBHOOK_SECRET=clerk-webhook-secret:latest,OPENAI_API_KEY=openai-key:latest,UPSTASH_REDIS_URL=upstash-url:latest,UPSTASH_REDIS_TOKEN=upstash-token:latest'
 
 substitutions:
-  _REGION: us-central1
-  _REPO: consistency-app
-  _SERVICE: consistency-api
+  _REGION: us-east4
+  _REPO: prilbie-repo
+  _SERVICE: prilbie-api
 
 availableSecrets:
   secretManager:
-    - versionName: projects/${PROJECT_ID}/secrets/neon-db-url/versions/latest
-      env: 'DATABASE_URL'
-    - versionName: projects/${PROJECT_ID}/secrets/neon-db-url-test/versions/latest
-      env: 'DATABASE_URL_TEST'
+    - versionName: projects/$PROJECT_ID/secrets/neon-db-url/versions/latest
+      env: DATABASE_URL
+
+options:
+  logging: CLOUD_LOGGING_ONLY
 ```
+
+**IAM (outside YAML):** Cloud Build’s service account needs access to secrets, Artifact Registry,
+and Cloud Run deploy. The **Cloud Run runtime** service account (here **`cloudbuild-sa@prilbie.iam.gserviceaccount.com`**) must have **Secret Manager Secret Accessor** on every secret
+referenced in **`--set-secrets`**.
 
 ### 12.4 Rollback
 
@@ -2425,12 +2403,12 @@ Cloud Run supports instant rollback to any previous revision:
 
 ```bash
 # List revisions
-gcloud run revisions list --service=consistency-api --region=us-central1
+gcloud run revisions list --service=prilbie-api --region=us-east4
 
 # Rollback to a specific revision
-gcloud run services update-traffic consistency-api \
-  --to-revisions=consistency-api-00042-abc=100 \
-  --region=us-central1
+gcloud run services update-traffic prilbie-api \
+  --to-revisions=prilbie-api-00042-abc=100 \
+  --region=us-east4
 ```
 
 Database rollbacks require a Prisma migration revert or restoring from a Neon branch.
@@ -2442,7 +2420,7 @@ Neon supports **branching** — create a branch before each migration as a resto
 # .env.example
 
 # ─── Database (Neon) ──────────────────────────────────────
-DATABASE_URL=postgresql://user:pass@ep-xxx.us-east-2.aws.neon.tech/consistency_app?sslmode=require
+DATABASE_URL=postgresql://user:pass@ep-xxx.us-east-2.aws.neon.tech/prilbie?sslmode=require
 
 # ─── Cache (Upstash Redis) ───────────────────────────────
 UPSTASH_REDIS_URL=https://xxx.upstash.io
@@ -2455,7 +2433,8 @@ CLERK_WEBHOOK_SECRET=whsec_...
 
 # ─── AI ───────────────────────────────────────────────────
 OPENAI_API_KEY=sk-...
-AI_MODEL=gpt-4o
+# Optional; defaults to gpt-4o-mini in env.schema.ts / AiCoachService
+# AI_MODEL=gpt-4o-mini
 
 # ─── App ──────────────────────────────────────────────────
 # Local default 3001; Cloud Run / platforms inject PORT (e.g. 8080) — no need to duplicate in secrets if the platform sets it.
@@ -2474,20 +2453,27 @@ Load and validate environment variables when the app starts using **Zod** and Ne
 | `DATABASE_URL` | Required in **all** environments (Prisma connects at boot). |
 | `NODE_ENV` | Optional; treat unset as `development`. |
 | `PORT` | Optional; must be an integer **1–65535** when set; default **3001** for local dev if omitted. |
-| `CLERK_SECRET_KEY`, `CLERK_JWT_KEY` | Required when **`NODE_ENV=production`**. In **`development`** and **`test`** (Jest e2e), omitting them is allowed so partial local stacks and tests can boot; protected routes still require valid Clerk config to authenticate. |
+| `CLERK_SECRET_KEY`, `CLERK_JWT_KEY`, `CLERK_WEBHOOK_SECRET`, `OPENAI_API_KEY` | Required (non-empty after trim) when **`NODE_ENV=production`** — fail fast at bootstrap. Webhooks need `CLERK_WEBHOOK_SECRET`; JWT routes need Clerk keys; AI Coach needs OpenAI key. |
+| `CLERK_*` / `OPENAI_*` in dev/test | In **`development`** and **`test`**, Clerk and OpenAI keys may be omitted so partial local stacks and e2e with placeholders can boot; protected routes still need valid Clerk config to authenticate where applicable. |
+| `AI_MODEL` | Optional; validated default **`gpt-4o-mini`** when unset. |
+| `UPSTASH_REDIS_URL`, `UPSTASH_REDIS_TOKEN`, `USE_NEON`, `CORS_ORIGINS`, … | Not in the Zod object; **`.passthrough()`** preserves them for `process.env` / `ConfigService.get()` (cache, Prisma factory, CORS). |
 
-After validation, read the listen port from **`ConfigService`** (e.g. `getOrThrow('PORT')`) in `main.ts` so runtime matches the validated value.
+After validation, read the listen port from **`ConfigService.getOrThrow('PORT')`** in **`src/main.ts`** after `configureApp(app)`.
 
 ---
 
 ## 13. Swagger Configuration
 
-The sample below inlines all HTTP setup in `main.ts`. An equivalent and **recommended** refactor is a **`configureApp(app: INestApplication)`** helper (e.g. `src/configure-app.ts`) invoked from `main.ts` and from e2e tests so Swagger, CORS, helmet, and the global prefix stay **DRY**. Behavior must match this section.
+**Implemented layout:** **`src/main.ts`** creates the app with **`rawBody: true`** (required for
+Clerk **Svix** webhook signature verification on raw POST bodies), calls **`configureApp(app)`**
+from **`src/configure-app.ts`** (helmet, compression, CORS, global prefix, shutdown hooks,
+Swagger + `cleanupOpenApiDoc` from `nestjs-zod`), then listens on **`ConfigService.getOrThrow('PORT')`**.
+The e2e **`test/helpers/test-app.ts`** factory follows the same pattern so HTTP behavior matches production.
 
-Use **`ConfigService.getOrThrow('PORT')`** after `NestFactory.create` when using validated env (§12.6).
+The listing below is a **conceptual** single-file version of what `configureApp` + `main` apply together; prefer the real split files in the repo.
 
 ```typescript
-// src/main.ts
+// Conceptual: main.ts + configure-app.ts combined
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
@@ -2497,33 +2483,28 @@ import compression from 'compression';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  const app = await NestFactory.create(AppModule, {
+    bufferLogs: true,
+    rawBody: true, // required for POST /webhooks/clerk (Svix)
+  });
 
-  // Structured logging
   app.useLogger(app.get(Logger));
-
-  // Security
   app.use(helmet());
   app.use(compression());
-
-  // CORS
   app.enableCors({
     origin: process.env.CORS_ORIGINS?.split(',') ?? ['http://localhost:3000'],
     credentials: true,
   });
-
-  // API versioning prefix
   app.setGlobalPrefix('api/v1', {
     exclude: ['/health', '/health/ready', '/webhooks/clerk'],
   });
-
-  // Graceful shutdown
   app.enableShutdownHooks();
 
-  // Swagger
   const config = new DocumentBuilder()
     .setTitle('Consistency App API')
-    .setDescription('Backend API for the Consistency habit-tracking application')
+    .setDescription(
+      'Backend API for the Consistency habit-tracking application',
+    )
     .setVersion('1.0')
     .addBearerAuth(
       { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
@@ -2544,6 +2525,7 @@ async function bootstrap() {
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
+  // Production uses cleanupOpenApiDoc(document) from nestjs-zod — see configure-app.ts
   SwaggerModule.setup('api/docs', app, document);
 
   const port = app.get(ConfigService).getOrThrow<number>('PORT');
@@ -2552,7 +2534,9 @@ async function bootstrap() {
 bootstrap();
 ```
 
-Swagger UI: `/api/docs`
+Swagger UI: registered in **`configure-app.ts`** via `SwaggerModule.setup('api/docs', …)` — confirm the full URL when the app is running (depends on Nest global prefix behavior for static Swagger routes).
+
+Swagger **title/description** strings in the snippet above match the current **`src/configure-app.ts`** (`Consistency App API`); the repository/product name is **Prilbie** — rename in code when you want UI copy to match.
 
 For Zod-based DTOs, use `nestjs-zod`'s `createZodDto` helper to auto-generate
 Swagger schemas from Zod definitions.
@@ -2690,9 +2674,11 @@ Every data-mutating endpoint MUST verify the authenticated user owns the resourc
 | DailyReflection  | reflection.userId === currentUser.profileId         |
 | AiConversation   | conversation.userId === currentUser.profileId       |
 
-Implementation: Service methods always filter by userId from JWT to implicitly
-enforce ownership. A reusable `OwnershipGuard` provides defense-in-depth for
-nested resources (areas, bundles) by resolving the ownership chain.
+Implementation: Service methods resolve the authenticated user’s **`UserProfile`** from the
+Clerk JWT and filter queries / updates by **`userId`** (internal profile id) so resources are
+owned by that profile. Nested resources (areas, bundles, checkins, etc.) are validated through
+the same ownership chain inside services — there is **no** separate `OwnershipGuard` class in
+the codebase; add route-level guards only if you introduce new cross-cutting rules.
 
 NEVER trust client-supplied userId — always derive it from the JWT.
 
@@ -2702,29 +2688,33 @@ NEVER trust client-supplied userId — always derive it from the JWT.
 
 ### Production Dependencies
 
+Aligned with **`package.json`** (April 2026); bump versions when upgrading the app.
+
 ```json
 {
-  "@nestjs/core": "^10",
-  "@nestjs/common": "^10",
-  "@nestjs/platform-express": "^10",
-  "@nestjs/swagger": "^7",
-  "@nestjs/config": "^3",
-  "@nestjs/throttler": "^5",
-  "@prisma/client": "^6",
-  "@prisma/adapter-neon": "^6",
-  "@neondatabase/serverless": "^0.10",
-  "@clerk/backend": "^1",
-  "@upstash/redis": "^1",
-  "zod": "^3",
-  "nestjs-zod": "^3",
-  "nestjs-pino": "^4",
-  "pino-http": "^10",
-  "openai": "^4",
-  "svix": "^1",
-  "helmet": "^7",
-  "compression": "^1",
-  "rxjs": "^7",
-  "ws": "^8"
+  "@nestjs/common": "^11.0.1",
+  "@nestjs/core": "^11.0.1",
+  "@nestjs/platform-express": "^11.0.1",
+  "@nestjs/swagger": "^11.2.6",
+  "@nestjs/config": "^4.0.3",
+  "@nestjs/throttler": "^6.5.0",
+  "@prisma/client": "^7.6.0",
+  "@prisma/adapter-neon": "^7.6.0",
+  "@neondatabase/serverless": "^1.0.2",
+  "@clerk/backend": "^3.2.4",
+  "@upstash/redis": "^1.37.0",
+  "zod": "^4.3.6",
+  "nestjs-zod": "^5.2.1",
+  "nestjs-pino": "^4.6.1",
+  "pino-http": "^11.0.0",
+  "openai": "^6.33.0",
+  "svix": "^1.90.0",
+  "helmet": "^8.1.0",
+  "compression": "^1.8.1",
+  "dotenv": "^17.4.0",
+  "reflect-metadata": "^0.2.2",
+  "rxjs": "^7.8.1",
+  "ws": "^8.20.0"
 }
 ```
 
@@ -2732,24 +2722,23 @@ NEVER trust client-supplied userId — always derive it from the JWT.
 
 ```json
 {
-  "prisma": "^6",
-  "@nestjs/cli": "^10",
-  "@nestjs/testing": "^10",
-  "jest": "^29",
-  "@types/jest": "^29",
-  "ts-jest": "^29",
-  "supertest": "^6",
-  "@types/supertest": "^6",
-  "typescript": "^5",
-  "eslint": "^8",
-  "@typescript-eslint/eslint-plugin": "^7",
-  "@typescript-eslint/parser": "^7",
-  "prettier": "^3",
-  "pino-pretty": "^11",
-  "ts-node": "^10",
-  "@types/compression": "^1",
-  "@types/express": "^4",
-  "@types/ws": "^8"
+  "prisma": "^7.6.0",
+  "@nestjs/cli": "^11.0.0",
+  "@nestjs/testing": "^11.1.18",
+  "jest": "^30.0.0",
+  "@types/jest": "^30.0.0",
+  "ts-jest": "^29.2.5",
+  "supertest": "^7.2.2",
+  "@types/supertest": "^7.2.0",
+  "typescript": "^5.7.3",
+  "eslint": "^9.18.0",
+  "typescript-eslint": "^8.20.0",
+  "prettier": "^3.4.2",
+  "pino-pretty": "^13.1.3",
+  "ts-node": "^10.9.2",
+  "@types/compression": "^1.8.1",
+  "@types/express": "^5.0.6",
+  "@types/ws": "^8.18.1"
 }
 ```
 
